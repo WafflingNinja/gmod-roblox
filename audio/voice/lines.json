@@ -14,6 +14,11 @@
       "name": "Citizen",
       "voice": "Tired everyday guy in a blue work shirt, mid-30s, stuck in a grim city. Your normal voice, a bit rough and nervous, with dry humor. Original lines only: never quote or copy HL2.",
       "pitch": 0
+    },
+    "rostik": {
+      "name": "RostikPro12308",
+      "voice": "You! Secret NPC, unlocked with the Konami code in the main menu. Your real voice, a hyped, proud game dev who can't believe someone found him.",
+      "pitch": 0
     }
   },
   "lines": [
@@ -82,6 +87,29 @@
     {"id": "citizen_hurt_2", "npc": "citizen", "category": "hurt", "text": "Hey, watch it!", "note": ""},
     {"id": "citizen_death_1", "npc": "citizen", "category": "death", "text": "Ugh...", "note": "dying groan"},
     {"id": "citizen_death_2", "npc": "citizen", "category": "death", "text": "Tell my cat... I tried.", "note": "weak, dramatic"},
-    {"id": "citizen_flee_1", "npc": "citizen", "category": "flee", "text": "Nope! Not today!", "note": "running"}
+    {"id": "citizen_flee_1", "npc": "citizen", "category": "flee", "text": "Nope! Not today!", "note": "running"},
+    {"id": "rostik_unlock_1", "npc": "rostik", "category": "unlock", "text": "You found me! Okay, okay, you're a real gamer.", "note": "surprised, then impressed"},
+    {"id": "rostik_unlock_2", "npc": "rostik", "category": "unlock", "text": "The Konami code? Respect.", "note": "slow nod in the voice"},
+    {"id": "rostik_spawn_1", "npc": "rostik", "category": "spawn", "text": "RostikPro12308 has entered the game.", "note": "announcer voice"},
+    {"id": "rostik_spawn_2", "npc": "rostik", "category": "spawn", "text": "Hey, it's me. The guy who made this.", "note": ""},
+    {"id": "rostik_idle_1", "npc": "rostik", "category": "idle", "text": "I should be fixing bugs right now.", "note": "guilty"},
+    {"id": "rostik_idle_2", "npc": "rostik", "category": "idle", "text": "Who put this prop here? Oh wait. Me.", "note": ""},
+    {"id": "rostik_idle_3", "npc": "rostik", "category": "idle", "text": "Please leave a like. Please.", "note": "begging, joking"},
+    {"id": "rostik_idle_4", "npc": "rostik", "category": "idle", "text": "If something's broken, it's a feature.", "note": "confident"},
+    {"id": "rostik_idle_5", "npc": "rostik", "category": "idle", "text": "This game took me so many nights.", "note": "tired, proud"},
+    {"id": "rostik_greet_1", "npc": "rostik", "category": "greet", "text": "Hey! Thanks for playing my game!", "note": "hyped"},
+    {"id": "rostik_greet_2", "npc": "rostik", "category": "greet", "text": "Oh, a real player! Hi!", "note": "surprised"},
+    {"id": "rostik_follow_1", "npc": "rostik", "category": "follow", "text": "Sure, I'll follow you. It's my game, but okay.", "note": ""},
+    {"id": "rostik_follow_2", "npc": "rostik", "category": "follow", "text": "Lead the way. I know all the shortcuts anyway.", "note": ""},
+    {"id": "rostik_stay_1", "npc": "rostik", "category": "stay", "text": "Fine, I'll wait. I'm used to waiting for Studio to load.", "note": ""},
+    {"id": "rostik_grabbed_1", "npc": "rostik", "category": "grabbed", "text": "Hey! Put down the developer!", "note": ""},
+    {"id": "rostik_grabbed_2", "npc": "rostik", "category": "grabbed", "text": "I made the physgun, and this is how you treat me?", "note": "offended"},
+    {"id": "rostik_thrown_1", "npc": "rostik", "category": "thrown", "text": "I'm patching thiiiis!", "note": "fading"},
+    {"id": "rostik_thrown_2", "npc": "rostik", "category": "thrown", "text": "Wooooo!", "note": "actually fun"},
+    {"id": "rostik_hurt_1", "npc": "rostik", "category": "hurt", "text": "Ow! I'm the dev!", "note": ""},
+    {"id": "rostik_hurt_2", "npc": "rostik", "category": "hurt", "text": "Hey, that's not in the patch notes!", "note": ""},
+    {"id": "rostik_death_1", "npc": "rostik", "category": "death", "text": "Oof. Control Z, control Z!", "note": "panicked"},
+    {"id": "rostik_death_2", "npc": "rostik", "category": "death", "text": "Bug report: I died.", "note": "flat"},
+    {"id": "rostik_flee_1", "npc": "rostik", "category": "flee", "text": "Nope! The dev is logging off!", "note": "running"}
   ]
 }
