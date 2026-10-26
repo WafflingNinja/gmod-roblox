@@ -1,5 +1,5 @@
 {
-  "name": "Sandbox",
+  "name": "waffles mod",
   "tree": {
     "$className": "DataModel",
     "Workspace": {
@@ -126,6 +126,39 @@
           "$className": "RemoteEvent"
         },
         "RagdollState": {
+          "$className": "RemoteEvent"
+        },
+        "DupeSave": {
+          "$className": "RemoteEvent"
+        },
+        "DupeLoad": {
+          "$className": "RemoteEvent"
+        },
+        "DupeDelete": {
+          "$className": "RemoteEvent"
+        },
+        "DupeState": {
+          "$className": "RemoteEvent"
+        },
+        "SendFeedback": {
+          "$className": "RemoteEvent"
+        },
+        "PickMap": {
+          "$className": "RemoteEvent"
+        },
+        "WeaponFire": {
+          "$className": "RemoteEvent"
+        },
+        "WeaponReload": {
+          "$className": "RemoteEvent"
+        },
+        "SetPvp": {
+          "$className": "RemoteEvent"
+        },
+        "WeaponFx": {
+          "$className": "UnreliableRemoteEvent"
+        },
+        "Flashlight": {
           "$className": "RemoteEvent"
         }
       }

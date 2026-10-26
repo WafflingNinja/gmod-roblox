@@ -7,7 +7,9 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local FIELD_OF_VIEW = 80
+local GunPose = require(script.Parent.GunPose)
+
+local fieldOfView = 80 -- the menu's Settings page changes it
 local BOB_SPEED = 9 -- radians per second at walk speed 16
 local BOB_SIDE = 0.06 -- studs
 local BOB_UP = 0.08
@@ -19,6 +21,14 @@ local ARMS = { "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperArm", "L
 local SHOULDERS = { "RightShoulder", "LeftShoulder" }
 
 local FirstPerson = {}
+
+function FirstPerson.setFieldOfView(degrees: number)
+	fieldOfView = degrees
+end
+
+function FirstPerson.fieldOfView(): number
+	return fieldOfView
+end
 
 function FirstPerson.init()
 	local player = Players.LocalPlayer
@@ -54,7 +64,7 @@ function FirstPerson.init()
 		if humanoid:GetState() == Enum.HumanoidStateType.Physics then
 			return -- ragdolled
 		end
-		camera.FieldOfView = FIELD_OF_VIEW
+		camera.FieldOfView = fieldOfView
 		findShoulders(character)
 
 		local holding = character:FindFirstChildOfClass("Tool") ~= nil
@@ -75,7 +85,9 @@ function FirstPerson.init()
 		end
 		local pitch = math.asin(math.clamp(camera.CFrame.LookVector.Y, -1, 1))
 		for motor, c0 in shoulders do
-			motor.C0 = if holding then c0 * CFrame.Angles(pitch + sway.Y, sway.X, 0) else c0
+			motor.C0 = if holding
+				then c0 * CFrame.Angles(pitch + sway.Y, sway.X, 0) * GunPose.offset(character, motor.Name)
+				else c0
 		end
 
 		local walking = humanoid.MoveDirection.Magnitude > 0.1 and humanoid.FloorMaterial ~= Enum.Material.Air

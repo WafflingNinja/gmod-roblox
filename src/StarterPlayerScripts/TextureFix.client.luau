@@ -1,89 +1,88 @@
 --!strict
+-- Strips texture references that Roblox 403s / has removed, which otherwise
+-- render as white or red placeholders in test mode. Plugins (SuperCharacterLoader
+-- and friends) re-inject these after load, so we sweep repeatedly, not just once.
+--
+-- SurfaceAppearance is deliberately not handled: its ColorMap/NormalMap/... are
+-- PluginSecurity, so a LocalScript cannot even read them. Touching them throws,
+-- and an error here used to abort the whole sweep, leaving every later texture
+-- unfixed. Anything we cannot inspect safely is left alone.
+
 local BAD = {
-	["149162327"] = true,
-	["7948622114"] = true,
-	["203785492"] = true,
+	"149162327", -- (Invalid audio) removed for ToS violations, wired into a texture slot
+	"7948622114", -- private decal by another user, not approved for this experience
+	"203785492", -- "Pop Close Sound" (audio) used as an image
 }
 
-local function fix()
-	for _, v in ipairs(game:GetDescendants()) do
-		if v:IsA("Decal") or v:IsA("Texture") then
-			local t = v.Texture
-			if typeof(t) == "string" then
-				for id in pairs(BAD) do
-					if string.find(t, id) then
-						v.Texture = "rbxassetid://0"
-						break
-					end
-				end
-			end
-		elseif v:IsA("MeshPart") then
-			local t = v.TextureID
-			if typeof(t) == "string" and t ~= "" then
-				for id in pairs(BAD) do
-					if string.find(t, id) then
-						v.TextureID = ""
-						break
-					end
-				end
-			end
-		elseif v:IsA("SpecialMesh") then
-			local t = v.TextureId
-			if typeof(t) == "string" and t ~= "" then
-				for id in pairs(BAD) do
-					if string.find(t, id) then
-						v.TextureId = ""
-						break
-					end
-				end
-			end
-		elseif v:IsA("SurfaceAppearance") then
-			local c = v:FindFirstChildOfClass("Texture")
-			if c and typeof(c.Texture) == "string" then
-				for id in pairs(BAD) do
-					if string.find(c.Texture, id) then
-						v:Destroy()
-						break
-					end
-				end
-			end
+local SWEEP_SECONDS = 20
+local SWEEP_EVERY = 0.5
+
+local TEXTURE_PROP = {
+	Decal = "Texture",
+	Texture = "Texture",
+	ImageLabel = "Image",
+	ImageButton = "Image",
+	MeshPart = "TextureID",
+	SpecialMesh = "TextureId",
+}
+
+local function isBad(value: unknown): boolean
+	if typeof(value) ~= "string" then
+		return false
+	end
+	local s = value :: string
+	if s == "" then
+		return false
+	end
+	for _, id in ipairs(BAD) do
+		if string.find(s, id, 1, true) then
+			return true
 		end
+	end
+	return false
+end
+
+local function strip(inst: Instance)
+	local prop = TEXTURE_PROP[inst.ClassName]
+	if not prop then
+		return
+	end
+
+	-- Some instances are locked/restricted. Never let one of them throw out of
+	-- the sweep or the DescendantAdded handler.
+	local okRead, value = pcall(function()
+		return (inst :: any)[prop]
+	end)
+	if not okRead or not isBad(value) then
+		return
+	end
+
+	pcall(function()
+		(inst :: any)[prop] = ""
+	end)
+end
+
+local function sweep()
+	for _, inst in ipairs(game:GetDescendants()) do
+		strip(inst)
 	end
 end
 
-task.wait()
-fix()
-game.DescendantAdded:Connect(function(d)
-	task.wait()
-	if d:IsA("Decal") or d:IsA("Texture") then
-		local t = d.Texture
-		if typeof(t) == "string" then
-			for id in pairs(BAD) do
-				if string.find(t, id) then
-					d.Texture = "rbxassetid://0"
-					break
-				end
-			end
-		end
-	elseif d:IsA("MeshPart") then
-		local t = d.TextureID
-		if typeof(t) == "string" and t ~= "" then
-			for id in pairs(BAD) do
-				if string.find(t, id) then
-					d.TextureID = ""
-					break
-				end
-			end
-		end
-	elseif d:IsA("SpecialMesh") then
-		local t = d.TextureId
-		if typeof(t) == "string" and t ~= "" then
-			for id in pairs(BAD) do
-				if string.find(t, id) then
-					d.TextureId = ""
-					break
-				end
-			end
-		end
+-- Property changes are what actually fire when a plugin rewrites an id in place.
+game.DescendantAdded:Connect(function(inst)
+	strip(inst)
+	inst.Changed:Connect(function()
+		strip(inst)
+	end)
+end)
+
+sweep()
+
+-- Keep fixing for the first stretch of the session, while plugins spin up.
+task.spawn(function()
+	local deadline = os.clock() + SWEEP_SECONDS
+	while os.clock() < deadline do
+		task.wait(SWEEP_EVERY)
+		sweep()
 	end
 end)

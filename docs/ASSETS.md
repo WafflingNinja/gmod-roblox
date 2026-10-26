@@ -30,4 +30,7 @@ Pipeline: `python3 audio/sfx.py` -> `audio/exports/*.ogg` (gitignored) -> upload
 ## License log
 | Pack | Author | License | URL | Used for |
 |---|---|---|---|---|
-| (none yet) | | | | |
+| gm_construct (asset 122998384728269) | Roblox user 75654656456pistol | marked public domain on the Store; provenance unknown (looks converted from the Gmod map) | create.roblox.com/store/asset/122998384728269 | `Workspace.Maps.Construct`, inserted 2026-10-26 on the user's call despite hard rule 1 |
+| AR2 (16179381803), HL2 pistol (3961174953), hl2 mmod smg1 (16705113161), RPG (136264585566005) | various Store users | provenance unknown, look like HL2/MMOD rips; meshes only, no scripts | create.roblox.com/store/asset/<id> | gun meshes in ServerStorage, inserted 2026-10-26 on the user's call |
+| Gun sounds: Pistol Shot 132539859090895 (MrAudio6), SMG Gunshot SFX 77130830495173 (KreditReborn), PLASMA PISTOL shot 18837782261 (im_tooooooold, used for the AR2), Rocket launcher fire 87972247594387 (Zelgraz, "made by"), gun-reload_1 139048584127232 (kaizz93) | Store users | free Store audio, provenance not stated; results labelled as ripped (StarCraft, Serious Sam) were skipped | create.roblox.com/store/asset/<id> | `Shared/Sounds.luau`, 2026-10-26; replace with the synthesized `audio/sfx.py` set or CC0 uploads before launch |
+| gm_flatgrass (asset 139504710395407) | Roblox user 75654656456pistol | same | create.roblox.com/store/asset/139504710395407 | `Workspace.Maps.Flatgrass`, same |

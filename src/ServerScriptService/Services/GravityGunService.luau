@@ -55,6 +55,9 @@ end
 
 local GravityGunService = {}
 
+-- Guns push props the same way.
+GravityGunService.kick = kick
+
 function GravityGunService.init()
 	pullRemote.OnServerEvent:Connect(function(player: Player, target: unknown)
 		if not limiter:consume(player, 1) then

@@ -12,7 +12,7 @@ for name, def in Sounds do
 		def.id == "" or def.id:match("^rbxasset://sounds/") or def.id:match("^rbxassetid://%d+$"),
 		"id must be empty, rbxasset://sounds/ or rbxassetid://<n>: " .. name
 	)
-	assert(def.volume > 0 and def.volume <= 1, "volume 0-1: " .. name)
+	assert(def.volume > 0 and def.volume <= 3, "volume 0-3 (Store audio is quiet): " .. name)
 	if def.id == "" then
 		assert(generator:find("def " .. name .. "%("), "not uploaded and no generator in audio/sfx.py: " .. name)
 	end

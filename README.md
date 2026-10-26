@@ -1,8 +1,8 @@
-# Sandbox (working title)
+# waffles mod
 
 Gmod-style freeroam sandbox for Roblox. Spawn props, weld contraptions, drive cars, wreck things with friends. Public, PC only.
 
-**Status:** Step 2 of 6 (see [ROADMAP](ROADMAP.md)): spawn menu, ownership, prop cap, physgun, toolgun.
+**Status:** Steps 1-4 built, step 5 partly built (maps, main menu, guns). Most of it is written but not yet play-tested. See [handoff.md](handoff.md) for the current state.
 
 ## Run it
 
@@ -18,14 +18,19 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 
 | Key | Action |
 |---|---|
-| Q | Toggle spawn menu |
+| M | Main menu: pick a map, controls, settings (opens on join) |
+| Arrow keys | Look around (for trackpads; Settings to turn off) |
+| Q | Toggle spawn menu (frees the mouse; Feedback button at the bottom) |
 | Click prop in menu | Spawn at crosshair |
 | X | Remove the prop you aim at (yours only) |
 | 1-6, again to cycle, wheel while open, LMB / RMB | weapon selector: open slot, pick, confirm / cancel (1 = Physgun, Gravity Gun; 6 = Toolgun) |
 | Physgun: LMB hold, wheel, R+mouse, RMB | grab, push/pull, rotate, freeze |
 | Gravity Gun: RMB, LMB | pull or hold (again drops), punt or throw |
 | Toolgun: wheel, LMB, RMB | pick mode, use, shrink (Scale) / big wheel (Wheel) |
-| F | Fire your thrusters |
+| Toolgun Dupe mode | LMB copies a build; panel Save / Load / Del per slot |
+| Guns: LMB, R | fire (hold for SMG / Pulse Rifle), reload. PvP is off until you turn it on in M > Options |
+| V | Fire your thrusters (hold) |
+| F | Flashlight on / off |
 | G | Ragdoll / stand up |
 | WASD in a Driver Seat | drive (cars from the Cars tab, or seat + Wheel tool builds) |
 
@@ -34,6 +39,7 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 | File | What |
 |---|---|
 | [ROADMAP](ROADMAP.md) | 6 build steps, done criteria |
+| [handoff](handoff.md) | Where things stand, what to test next |
 | [TO-DO](TO-DO.md) | Everything left, in build order, one-take plan |
 | [CLAUDE.md](CLAUDE.md) | Rules for working in this repo |
 | [docs/GDD.md](docs/GDD.md) | Game design: pillars, features, non-goals |

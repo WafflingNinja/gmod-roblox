@@ -8,22 +8,28 @@ local UserInputService = game:GetService("UserInputService")
 local Net = require(script.Parent.Parent.Net)
 local ToolHud = require(script.Parent.Parent.UI.ToolHud)
 local Config = require(ReplicatedStorage.Shared.Config)
+local WeaponCatalog = require(ReplicatedStorage.Shared.WeaponCatalog)
 local GravityGun = require(script.Parent.GravityGun)
+local Gun = require(script.Parent.Gun)
 local Physgun = require(script.Parent.Physgun)
 local Toolgun = require(script.Parent.Toolgun)
 
-local THRUSTER_KEY = Enum.KeyCode.F
+local THRUSTER_KEY = Enum.KeyCode.V
 
 local starters: { [string]: () -> () -> () } = {
 	[Config.PHYSGUN] = Physgun.start,
 	[Config.TOOLGUN] = Toolgun.start,
 	[Config.GRAVGUN] = GravityGun.start,
 }
+for _, def in WeaponCatalog.list do
+	starters[def.id] = Gun.starter(def)
+end
 
 local ToolController = {}
 
 function ToolController.init()
 	local player = Players.LocalPlayer
+	Gun.init()
 	local thrusters = Net.event("ThrustersHeld")
 	local select = Net.event("ToolSelect")
 

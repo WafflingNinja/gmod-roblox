@@ -15,8 +15,8 @@
 - [ ] Place has Baseplate, SpawnPad, `Props` folder (Rojo provides these)
 - [ ] Title, thumbnail, description; no Gmod or Valve names or art in them
 
-## Feedback button
-- In-game button opens a small text box, sends to the server via one rate-limited remote (`SendFeedback`, 1 per 60 s, 500 char cap, `typeof` string check).
+## Feedback button (built: `UI/Feedback.luau`, `FeedbackService.luau`)
+- "Feedback" button in the Q menu opens a small text box, sends to the server via one rate-limited remote (`SendFeedback`, 1 per 60 s, 500 char cap, `typeof` string check).
 - Server stores in a DataStore key and prints to server log. Read later via Open Cloud or Studio.
 - Never display feedback text to other players.
 

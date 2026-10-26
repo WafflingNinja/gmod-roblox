@@ -1,4 +1,4 @@
-# Sandbox: repo rules
+# waffles mod: repo rules
 
 Gmod-style freeroam sandbox on Roblox. File-based via Rojo. Scripts are in git; maps/meshes live in the place file.
 

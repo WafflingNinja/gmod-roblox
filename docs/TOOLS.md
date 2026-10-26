@@ -8,6 +8,8 @@ The game is locked first person (`StarterPlayer.CameraMode = LockFirstPerson` in
 
 Sounds (`Services/Sfx.luau`, played on the server so everyone hears): physgun grab/hum/release/freeze, gravity gun pull/hum/punt, toolgun fire on every use plus a weld click for Weld/Rope/Thruster/Wheel/Unweld, spawn pop, remove poof, ragdoll get-up. Client-only (`Sfx.luau`): selector tick, deny buzz with toasts. See `docs/ASSETS.md` for where the audio comes from.
 
+Panels need the mouse: opening the Q menu frees it (a `Modal` button), so the toolgun panel (modes, colours, dupe slots) is clickable while Q is open. The Feedback box frees it the same way.
+
 The Roblox hotbar is off; `UI/WeaponSelect.luau` is an HL2-style selector across the top of the screen. Keys 1-6 open a slot and pressing again cycles inside it, the wheel moves through every weapon while it is open, LMB (on release) confirms, RMB cancels, and it hides after 2.5 s without switching. Tools ignore their own input while it is open. Each Tool carries `Slot`, `SlotOrder` and `Label` attributes (set from `LOADOUT` in `ToolService`): slot 1 Physics Gun, Gravity Gun; slot 6 Tool Gun; 2-5 are free for weapons. The client starts a tool's logic when the Tool enters the character and stops it when it leaves.
 
 All tools are server-authoritative: the client sends a tool id and an aim target, the server resolves and validates. Players can only use tools on props they own.
@@ -30,12 +32,13 @@ Mouse wheel or the right-hand panel picks a mode. LMB uses it. One remote, `Tool
 |---|---|
 | Weld | Click prop A, then prop B: `WeldConstraint`. |
 | Rope | Click A, then B: `RopeConstraint` between the clicked points, up to 100 studs. |
-| Thruster | Click a face: a `VectorForce` pushes the prop opposite that face (click the bottom to go up). Hold F to fire all your thrusters. Force scales with assembly mass (350 studs/s squared). Max 20. |
+| Thruster | Click a face: a `VectorForce` pushes the prop opposite that face (click the bottom to go up). Hold V to fire all your thrusters. Force scales with assembly mass (350 studs/s squared). Max 20. |
 | Wheel | Click a face: LMB small wheel, RMB big wheel, on a `HingeConstraint` motor with the axle along the face normal. The wheel is a child of the prop (dies with it, Unweld removes it) and counts as a constraint. Weld a Driver Seat to the build to drive: no steer wheels, so it turns tank-style. |
 | Scale | LMB grows 1.25x, RMB shrinks, clamped to 0.25x to 4x of the original size. |
 | Paint | 12 palette colours, picked in the panel. |
 | Unweld | Removes every weld, rope and thruster on the prop. |
 | Remove | Deletes the prop. |
+| Dupe | Click a prop: copies it and everything linked to it (up to 80 parts) to your clipboard. The panel saves the clipboard to slot 1-10, loads a slot at the crosshair, deletes a slot. See `docs/DUPES.md`. |
 
 Two-click modes keep their first selection on the server. The server tells the client which prop is selected (`ToolSelect`) and the client shows an outline. The selection clears when the tool is unequipped.
 
@@ -48,6 +51,9 @@ Two-click modes keep their first selection on the server. The server tells the c
 | LMB while holding | Throw: release and punt. |
 
 Remotes `GravityPull(prop)` and `GravityPunt(prop, direction)`; the hold reuses `PhysgunAim`. The server picks pull vs hold from distance and computes every impulse. Rules: Gravity gun equipped, alive, own prop, unanchored (frozen props ignore it), in range, direction finite and unit-length, 5 burst, 3 per second. The server takes network ownership for an impulse (it only applies on the simulating machine) and gives it back after 2 s. The hold code is shared with the physgun in `Hold.luau` (orange beam), so one hold per player across both tools.
+
+## Guns (`WeaponService.luau`, `Tools/Gun.luau`, `Shared/WeaponCatalog.luau`)
+Every player carries 9mm Pistol (slot 2), SMG and Pulse Rifle (slot 3), Rocket Launcher (slot 5). LMB fires (hold for SMG/AR2), R reloads, ammo panel bottom right. The client sends gun id, camera position and aim; the server checks the gun is equipped, rpm, magazine (Tool `Ammo` attribute) and that the origin is at the head, adds spread and raycasts. Hits push the shooter's own props; players only take damage when both have PvP on (Options in the M menu). Rockets fly server-side (120 studs/s, 3 in flight per player) and explode with an 18-stud radius, same push/damage rules. Gun meshes are Creator Store models in ServerStorage (`AR2`, `Pistol`, `SMG`, `RPG`); `yaw` in the catalog turns a model whose barrel faces the wrong way. Holds: `GunPose.luau` (arm joint rotations per pistol/rifle/launcher) and `GRIPS` in `ToolService` (where the gun sits in the hand).
 
 ## Vehicles (`VehicleService.luau`)
 Spawn menu "Cars" tab: Sedan, Pickup Truck, Buggy. The chassis is the one registered prop; the VehicleSeat, body details and wheels are its children. Front wheels steer on an invisible knuckle turned by a Servo hinge (30 degrees); all wheels are Motor hinges. One Heartbeat drives every occupied seat: wheel speed = throttle * 90 studs/s at the rim, torque = chassis mass * 40 * radius, soft brake (20 %) with no input. A seat drives every wheel whose chassis is in the seat's rigid assembly, so seat + welded props + Wheel-tool wheels make a car.

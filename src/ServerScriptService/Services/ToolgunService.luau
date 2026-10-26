@@ -9,12 +9,12 @@ local PropCatalog = require(ReplicatedStorage.Shared.PropCatalog)
 local ToolModes = require(ReplicatedStorage.Shared.ToolModes)
 local Constraints = require(script.Parent.Constraints)
 local Ownership = require(script.Parent.Ownership)
+local PropBuilder = require(script.Parent.PropBuilder)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
 local Validate = require(script.Parent.Validate)
 local VehicleService = require(script.Parent.VehicleService)
 
-local WHEELS = { wheel_small = true, wheel_big = true }
 local CLICK_MODES = { Weld = true, Rope = true, Thruster = true, Wheel = true, Unweld = true }
 
 local remotes = ReplicatedStorage.Remotes
@@ -31,6 +31,9 @@ local pending: { [Player]: Pending } = {}
 local thrusters: { [Player]: { [VectorForce]: Thruster } } = {}
 local useLimiter = RateLimiter.new(Config.TOOL_BUCKET_CAPACITY, Config.TOOL_REFILL_PER_SECOND)
 local thrusterLimiter = RateLimiter.new(Config.THRUSTER_BUCKET_CAPACITY, Config.THRUSTER_REFILL_PER_SECOND)
+
+-- The link builders below are also used by DupeService to rebuild a saved dupe.
+local ToolgunService = {}
 
 local function notify(player: Player, message: string)
 	notifyRemote:FireClient(player, message)
@@ -99,7 +102,7 @@ local function setThrusters(player: Player, held: boolean)
 	end
 end
 
-local function thrusterCount(player: Player): number
+function ToolgunService.thrusterCount(player: Player): number
 	local n = 0
 	local set = thrusters[player]
 	if set then
@@ -110,32 +113,32 @@ local function thrusterCount(player: Player): number
 	return n
 end
 
-local function newThruster(use: Use)
-	local player = use.player
+-- Thruster on `part`'s face at `point` (world), pushing away from `normal`.
+function ToolgunService.thruster(player: Player, part: BasePart, point: Vector3, normal: Vector3)
 	if not Constraints.canAdd(player) then
 		notify(player, `Constraint limit reached ({Config.CONSTRAINT_CAP}).`)
 		return
 	end
-	if thrusterCount(player) >= Config.THRUSTER_CAP then
+	if ToolgunService.thrusterCount(player) >= Config.THRUSTER_CAP then
 		notify(player, `Thruster limit reached ({Config.THRUSTER_CAP}).`)
 		return
 	end
-	if use.normal.Magnitude < 0.9 or use.normal.Magnitude > 1.1 then
+	if normal.Magnitude < 0.9 or normal.Magnitude > 1.1 then
 		return
 	end
 
 	-- Force acts along the attachment's -Z, which points into the face that was clicked.
-	local thrustFrame = CFrame.lookAt(use.point, use.point - use.normal.Unit)
+	local thrustFrame = CFrame.lookAt(point, point - normal.Unit)
 	local attachment = Instance.new("Attachment")
-	attachment.CFrame = use.part.CFrame:ToObjectSpace(thrustFrame)
-	attachment.Parent = use.part
+	attachment.CFrame = part.CFrame:ToObjectSpace(thrustFrame)
+	attachment.Parent = part
 
 	local force = Instance.new("VectorForce")
 	force.Attachment0 = attachment
 	force.RelativeTo = Enum.ActuatorRelativeTo.Attachment0
 	force.ApplyAtCenterOfMass = false
 	force.Force = Vector3.zero
-	force.Parent = use.part
+	force.Parent = part
 
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Enabled = false
@@ -153,25 +156,62 @@ local function newThruster(use: Use)
 		set = {}
 		thrusters[player] = set
 	end
-	set[force] = { part = use.part, emitter = emitter }
+	set[force] = { part = part, emitter = emitter }
 	force.Destroying:Once(function()
 		if thrusters[player] then
 			thrusters[player][force] = nil
 		end
 	end)
 	local extras: { Instance } = { attachment }
-	Constraints.register(player, force, { use.part }, extras)
+	Constraints.register(player, force, { part }, extras)
 end
 
+function ToolgunService.weld(player: Player, a: BasePart, b: BasePart)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = a
+	weld.Part1 = b
+	weld.Parent = a
+	Constraints.register(player, weld, { a, b })
+end
+
+-- Rope between world points on `a` and `b`. The caller checks the length cap.
+function ToolgunService.rope(player: Player, a: BasePart, pointA: Vector3, b: BasePart, pointB: Vector3, length: number)
+	local a0 = attachmentAt(a, pointA)
+	local a1 = attachmentAt(b, pointB)
+	local rope = Instance.new("RopeConstraint")
+	rope.Attachment0 = a0
+	rope.Attachment1 = a1
+	rope.Length = math.max(length, 0.5)
+	rope.Visible = true
+	rope.Thickness = 0.2
+	rope.Color = BrickColor.new("Dark stone grey")
+	rope.Parent = a
+	local extras: { Instance } = { a0, a1 }
+	Constraints.register(player, rope, { a, b }, extras)
+end
+
+-- Motor wheel `id` on `part` at `point` (world), axle along `normal`. The wheel is a child of the prop,
+-- so it dies with it; Unweld also removes it.
+function ToolgunService.wheel(player: Player, part: BasePart, point: Vector3, normal: Vector3, id: string)
+	if normal.Magnitude < 0.9 or normal.Magnitude > 1.1 then
+		return
+	end
+	if not Constraints.canAdd(player) then
+		notify(player, `Constraint limit reached ({Config.CONSTRAINT_CAP}).`)
+		return
+	end
+	local hinge, made = VehicleService.attachWheel(part, point, normal, PropCatalog.byId[id], false)
+	hinge:SetAttribute("WheelId", id)
+	Constraints.register(player, hinge, { part }, made)
+end
+
+-- Keyed by ToolModes id. DupeService adds "Dupe".
 local handlers: { [string]: (Use) -> () } = {}
+ToolgunService.handlers = handlers
 
 handlers.Weld = function(use)
 	twoClick("Weld", use, function(first, second)
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = first.part
-		weld.Part1 = second.part
-		weld.Parent = first.part
-		Constraints.register(second.player, weld, { first.part, second.part })
+		ToolgunService.weld(second.player, first.part, second.part)
 	end)
 end
 
@@ -182,38 +222,20 @@ handlers.Rope = function(use)
 			notify(second.player, "Rope too long.")
 			return
 		end
-		local a0 = attachmentAt(first.part, first.point)
-		local a1 = attachmentAt(second.part, second.point)
-		local rope = Instance.new("RopeConstraint")
-		rope.Attachment0 = a0
-		rope.Attachment1 = a1
-		rope.Length = math.max(length, 0.5)
-		rope.Visible = true
-		rope.Thickness = 0.2
-		rope.Color = BrickColor.new("Dark stone grey")
-		rope.Parent = first.part
-		local extras: { Instance } = { a0, a1 }
-		Constraints.register(second.player, rope, { first.part, second.part }, extras)
+		ToolgunService.rope(second.player, first.part, first.point, second.part, second.point, length)
 	end)
 end
 
-handlers.Thruster = newThruster
+handlers.Thruster = function(use)
+	ToolgunService.thruster(use.player, use.part, use.point, use.normal)
+end
 
 handlers.Wheel = function(use)
 	local id = use.extra
-	if typeof(id) ~= "string" or not WHEELS[id] then
+	if typeof(id) ~= "string" or not Config.WHEEL_PROPS[id] then
 		return
 	end
-	if use.normal.Magnitude < 0.9 or use.normal.Magnitude > 1.1 then
-		return
-	end
-	if not Constraints.canAdd(use.player) then
-		notify(use.player, `Constraint limit reached ({Config.CONSTRAINT_CAP}).`)
-		return
-	end
-	-- The wheel is a child of the prop, so it dies with it; Unweld also removes it.
-	local hinge, made = VehicleService.attachWheel(use.part, use.point, use.normal, PropCatalog.byId[id], false)
-	Constraints.register(use.player, hinge, { use.part }, made)
+	ToolgunService.wheel(use.player, use.part, use.point, use.normal, id)
 end
 
 handlers.Scale = function(use)
@@ -232,21 +254,7 @@ handlers.Scale = function(use)
 	if nextScale == scale then
 		return
 	end
-	use.part:SetAttribute("Scale", nextScale)
-	use.part.Size = base * nextScale
-	-- Detail parts follow the prop's new size. Their weld is off while they move so they
-	-- don't drag the whole prop with them.
-	for _, child in use.part:GetChildren() do
-		local detailSize = child:GetAttribute("DetailSize")
-		local relative = child:GetAttribute("DetailCFrame")
-		local weld = child:FindFirstChildOfClass("WeldConstraint")
-		if child:IsA("BasePart") and weld and typeof(detailSize) == "Vector3" and typeof(relative) == "CFrame" then
-			weld.Enabled = false
-			child.Size = detailSize * nextScale
-			child.CFrame = use.part.CFrame * CFrame.new(relative.Position * nextScale) * relative.Rotation
-			weld.Enabled = true
-		end
-	end
+	PropBuilder.setScale(use.part, nextScale)
 end
 
 handlers.Paint = function(use)
@@ -268,8 +276,6 @@ handlers.Remove = function(use)
 	Sfx.playAt("remove", use.part.Position)
 	use.part:Destroy()
 end
-
-local ToolgunService = {}
 
 function ToolgunService.init()
 	useRemote.OnServerEvent:Connect(

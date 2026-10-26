@@ -2,6 +2,8 @@
 
 Written so one long autonomous run can finish the game without re-planning. Work top to bottom. Each phase ends with a **Done when** check; do not start the next phase until it passes. Rules in `CLAUDE.md` always apply (server decides, `--!strict`, no Valve/Gmod assets, `scripts/check.sh` green, update the matching `docs/` file in the same change).
 
+**State 2026-10-26:** see `handoff.md`. Built since: dupes, feedback, maps (Construct, Flatgrass), main menu, keyboard look, four guns, shared UI skin. Untested in Studio: guns firing, gun holds, dupes, feedback.
+
 **State at backup time (2026-10-25):** steps 1 and 2 are built and Studio-verified with 1 client: spawn menu, ownership, 150 cap, physgun, toolgun (weld, rope, thruster, scale, paint, unweld, remove), multi-part prop details. Nothing is committed to git yet.
 
 ## 0. Needs the user (batch these, do not block on them)
@@ -16,8 +18,8 @@ Assume a pause on any of these only when the next task truly depends on it; othe
 
 ## 1. Housekeeping (30 min)
 - [ ] `git add -A && git commit` the current state (conventional message). Ask first if a remote is wanted; no push without being told.
-- [ ] Delete `Sandbox*.rbxl` and `.lock` leftovers once Studio windows are closed (they are gitignored build output).
-- [ ] Decide the project name; replace "Sandbox" in `README.md`, `default.project.json` (`name`), `docs/GDD.md`.
+- [x] Delete `Sandbox*.rbxl` and `.lock` leftovers (done; Studio's own AutoRecovery files live outside the repo).
+- [x] Project name: "waffles mod" (README, project name, menu title).
 - [ ] Studio test helper: add `tests/studio/` with small Luau snippets (spawn N props, fire remote, assert) so MCP runs are repeatable. Keep each under 40 s (MCP drops longer calls).
 
 **Done when:** `git log` has the baseline commit and `scripts/check.sh` passes.
@@ -90,7 +92,7 @@ Work through `docs/LAUNCH.md`. Needs the user for publishing, thumbnail, descrip
 - After the user imports (or 5.9), catalog gets `visual = {meshId, size, offset}`: a MeshPart child, no collision, welded to the primitive hitbox; the old `details` are dropped for that prop. Scale tool already rescales children with `DetailSize`.
 - License log in `docs/ASSETS.md` for any CC0 pack used (Kenney, Quaternius). No Gmod/Valve shapes copied 1:1; own proportions and textures.
 
-### 5.2 Gun roster
+### 5.2 Gun roster (partly built 2026-10-26: Pistol, SMG, Pulse Rifle, Rocket Launcher; untested in play; models and sounds come from Creator Store users, see `docs/ASSETS.md`)
 - Provenance check first: the FFA work has 7 procedurally generated Blender guns (original) and a separate set of 48 "BD" meshes. Do not use the BD meshes in a public game until the user confirms where they came from and the license. The 7 are fine.
 - Spawn tab "Weapons": guns are Tools given on spawn click (cap 3 per player). `WeaponService.luau`: server hitscan raycast, fire rate and ammo server-side, recoil is client cosmetic. Hits apply capped `ApplyImpulse` to props and ragdolls. Player damage only when the player has PvP toggled on (default off; toggle panel; a PvP player can only be damaged by other PvP players).
 - Client viewmodel optional; reuse the FFA viewmodel approach only for the 7 original guns.
@@ -141,4 +143,5 @@ Only if the user provides an Open Cloud API key with `asset:write`: `tools/uploa
 - Upload the 13 generated SFX (`audio/exports/*.ogg`, Asset Manager > Bulk Import): pending
 - BD mesh provenance and license: pending
 - Publish and settings: pending
-- Game name: pending
+- gm_construct / gm_flatgrass Store maps: provenance unknown, DMCA risk accepted by the user 2026-10-26; replace with originals before a public launch if they turn out to be Valve conversions
+- Studio: Game Settings > Security > Enable Studio Access to API Services (dupe saving): pending

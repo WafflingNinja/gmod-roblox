@@ -8,7 +8,7 @@ local list: { ToolMode } = {
 	{
 		id = "Thruster",
 		name = "Thruster",
-		hint = "Click a face to mount a thruster. It pushes the prop the opposite way. Hold F to fire.",
+		hint = "Click a face to mount a thruster. It pushes the prop the opposite way. Hold V to fire.",
 	},
 	{
 		id = "Wheel",
@@ -19,6 +19,11 @@ local list: { ToolMode } = {
 	{ id = "Paint", name = "Paint", hint = "Pick a colour, then click a prop." },
 	{ id = "Unweld", name = "Unweld", hint = "Click a prop to cut its welds, ropes and thrusters." },
 	{ id = "Remove", name = "Remove", hint = "Click a prop to delete it." },
+	{
+		id = "Dupe",
+		name = "Dupe",
+		hint = "Click a prop to copy it and everything linked to it. Save the copy to a slot, load a slot at the crosshair.",
+	},
 }
 
 local byId: { [string]: ToolMode } = {}

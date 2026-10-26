@@ -19,6 +19,13 @@ local sounds: { [string]: SoundDef } = {
 	remove = { id = "", volume = 0.5 },
 	ui_tick = { id = "", volume = 0.3 },
 	ragdoll_getup = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.5 },
+	pistol_fire = { id = "rbxassetid://132539859090895", volume = 1.8 },
+	smg_fire = { id = "rbxassetid://77130830495173", volume = 1.6 },
+	ar2_fire = { id = "rbxassetid://18837782261", volume = 1.8 },
+	rpg_fire = { id = "rbxassetid://87972247594387", volume = 2.5 },
+	reload = { id = "rbxassetid://139048584127232", volume = 1.6 },
+	dry_fire = { id = "", volume = 0.5 },
+	explosion = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 1 },
 }
 
 return table.freeze(sounds)

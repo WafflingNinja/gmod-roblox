@@ -51,16 +51,20 @@ function Constraints.register(player: Player, constraint: Instance, props: { Bas
 	end)
 end
 
-function Constraints.clearFor(prop: BasePart)
-	local set = byProp[prop]
-	if not set then
-		return
-	end
+-- Every registered constraint touching `prop`.
+function Constraints.linksOf(prop: BasePart): { Instance }
 	local all: { Instance } = {}
-	for constraint in set do
-		table.insert(all, constraint)
+	local set = byProp[prop]
+	if set then
+		for constraint in set do
+			table.insert(all, constraint)
+		end
 	end
-	for _, constraint in all do
+	return all
+end
+
+function Constraints.clearFor(prop: BasePart)
+	for _, constraint in Constraints.linksOf(prop) do
 		constraint:Destroy()
 	end
 end

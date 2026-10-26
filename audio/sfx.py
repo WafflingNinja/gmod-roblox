@@ -150,6 +150,46 @@ def remove():
     return fade(tone + poof)
 
 
+def shot(seconds, crack_hz, body_hz, rate):
+    """Gunshot: bright noise crack over a low thump, fast decay."""
+    crack = lowpass(noise(seconds), crack_hz) * decay(seconds, rate)
+    thump = np.sin(2 * np.pi * sweep_hz(body_hz, body_hz * 0.4, seconds)) * decay(seconds, rate * 0.6)
+    return fade(crack + 0.8 * thump)
+
+
+def sweep_hz(start, end, seconds):
+    return np.cumsum(np.linspace(start, end, int(RATE * seconds))) / RATE
+
+
+def pistol_fire():
+    return shot(0.35, 5000, 140, 18)
+
+
+def smg_fire():
+    return shot(0.22, 6500, 180, 26)
+
+
+def ar2_fire():
+    zap = np.sin(2 * np.pi * sweep_hz(1400, 300, 0.25)) * decay(0.25, 22)
+    return fade(pad(shot(0.3, 3500, 110, 16), 0.6 * zap))
+
+
+def rpg_fire():
+    s = 0.9
+    whoosh = lowpass(noise(s), np.linspace(1500, 400, int(RATE * s))) * decay(s, 3)
+    return fade(pad(shot(0.3, 2500, 90, 12), whoosh))
+
+
+def reload():
+    click = lambda: lowpass(noise(0.04), 6000) * decay(0.04, 120)
+    gap = np.zeros(int(RATE * 0.25))
+    return fade(np.concatenate([click(), gap, click(), np.zeros(int(RATE * 0.1)), click()]))
+
+
+def dry_fire():
+    return fade(lowpass(noise(0.05), 4000) * decay(0.05, 100), ms=2)
+
+
 def ui_tick():
     s = 0.05
     return fade(np.sin(2 * np.pi * 2400 * time(s)) * decay(s, 90), ms=2)
@@ -171,6 +211,12 @@ SOUNDS = {
         spawn,
         remove,
         ui_tick,
+        pistol_fire,
+        smg_fire,
+        ar2_fire,
+        rpg_fire,
+        reload,
+        dry_fire,
     ]
 }
 

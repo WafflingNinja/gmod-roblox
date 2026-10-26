@@ -95,4 +95,26 @@ function PropBuilder.build(def: PropCatalog.PropDef, cframe: CFrame): BasePart
 	return part
 end
 
+-- Resize a prop to `scale` times its catalog size. Detail parts follow; their weld is off while they move so
+-- they don't drag the whole prop with them.
+function PropBuilder.setScale(part: BasePart, scale: number)
+	local base = part:GetAttribute("BaseSize")
+	if typeof(base) ~= "Vector3" then
+		return
+	end
+	part:SetAttribute("Scale", scale)
+	part.Size = base * scale
+	for _, child in part:GetChildren() do
+		local detailSize = child:GetAttribute("DetailSize")
+		local relative = child:GetAttribute("DetailCFrame")
+		local weld = child:FindFirstChildOfClass("WeldConstraint")
+		if child:IsA("BasePart") and weld and typeof(detailSize) == "Vector3" and typeof(relative) == "CFrame" then
+			weld.Enabled = false
+			child.Size = detailSize * scale
+			child.CFrame = part.CFrame * CFrame.new(relative.Position * scale) * relative.Rotation
+			weld.Enabled = true
+		end
+	end
+end
+
 return PropBuilder

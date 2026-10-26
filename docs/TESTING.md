@@ -33,6 +33,26 @@ Pure logic = anything that does not need the Roblox engine. Keep data modules fr
 - [ ] Paint: pick a colour in the panel, click a prop. Unweld removes welds/ropes/thrusters. Remove deletes.
 - [ ] Constraint cap: 300 welds/ropes/thrusters shows the limit toast.
 
+### Maps and menu
+- [ ] Join: main menu shows, mouse is free. Cards: Baseplate, Construct, Flatgrass. Click Construct: you land on its spawn, sky changes. M reopens.
+- [ ] Die on Construct: respawn on Construct. Second player on Flatgrass sees Flatgrass sky, first still sees Construct's.
+- [ ] Settings: sensitivity, FOV, arrow-key look on/off and speed all take effect. Arrow keys turn and pitch the view; with look off they walk again.
+- [ ] Props spawn, tools and dupes work on both maps.
+
+### Guns
+- [ ] Each gun: points forward in first person, both hands on it (launcher on the shoulder); another player sees the same hold.
+- [ ] Fire rate, magazine count, R reload, auto-reload on empty; RPG explodes and pushes own props.
+- [ ] Shooting another player does nothing until both turn PvP on (M > Options).
+- [ ] `WeaponFire:FireServer("AR2", Vector3.new(0,1e6,0), Vector3.yAxis)`: nothing. Spam faster than rpm: extra shots ignored.
+
+### Step 4 dupes (needs API Services on to test saving)
+- [ ] Weld 3 planks, rope a crate, add a thruster and 2 Wheel-tool wheels. Dupe mode, click one: clipboard shows `Plank +3 (4)`.
+- [ ] Save to slot 1, Load slot 1: same build appears at the crosshair, welds hold, rope, thruster (F) and wheels work. Scale, paint and frozen state kept.
+- [ ] Premade car in a dupe: loads with seat and wheels, drives.
+- [ ] Load with 140 props out: refused with a toast, nothing spawned.
+- [ ] Rejoin: slot 1 still there. API Services off: toast says dupes won't be saved, slots still work this session.
+- [ ] `DupeLoad:FireServer(1, Vector3.new(0/0, 0, 0))`, `DupeSave:FireServer(11)`, `DupeLoad:FireServer("1", Vector3.zero)`: nothing.
+
 ### Step 2 abuse (Command bar on a client)
 - [ ] `ToolgunUse:FireServer("Remove", workspace.Baseplate, Vector3.zero, Vector3.yAxis)`: nothing.
 - [ ] `ToolgunUse:FireServer("Scale", prop, prop.Position, Vector3.yAxis, 99)`: nothing.

@@ -10,7 +10,7 @@ for _, mode in ToolModes.list do
 	assert(ToolModes.byId[mode.id] == mode, "byId mismatch: " .. mode.id)
 	assert(#mode.name > 0 and #mode.hint > 0, "mode needs name and hint: " .. mode.id)
 end
-for _, required in { "Weld", "Rope", "Thruster", "Wheel", "Scale", "Paint", "Unweld", "Remove" } do
+for _, required in { "Weld", "Rope", "Thruster", "Wheel", "Scale", "Paint", "Unweld", "Remove", "Dupe" } do
 	assert(ToolModes.byId[required], "missing mode: " .. required)
 end
 

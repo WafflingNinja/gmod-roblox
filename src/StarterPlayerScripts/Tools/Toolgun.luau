@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Aim = require(script.Parent.Parent.Aim)
 local Net = require(script.Parent.Parent.Net)
+local SpawnMenu = require(script.Parent.Parent.UI.SpawnMenu)
 local ToolHud = require(script.Parent.Parent.UI.ToolHud)
 local WeaponSelect = require(script.Parent.Parent.UI.WeaponSelect)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -14,6 +15,7 @@ local ToolModes = require(ReplicatedStorage.Shared.ToolModes)
 local modeIndex = 1
 local colorIndex = 1
 local panel: ToolHud.ToolgunPanel? = nil
+local dupeState: { clipboard: string, slots: { string } } = { clipboard = "", slots = {} }
 
 local function selectMode(id: string)
 	for index, mode in ToolModes.list do
@@ -33,12 +35,38 @@ local function selectColor(index: number)
 	end
 end
 
+local function dupeAction(action: ToolHud.DupeAction, slot: number)
+	if action == "save" then
+		Net.event("DupeSave"):FireServer(slot)
+	elseif action == "delete" then
+		Net.event("DupeDelete"):FireServer(slot)
+	else
+		local point = SpawnMenu.aimPoint()
+		if point then
+			Net.event("DupeLoad"):FireServer(slot, point)
+		end
+	end
+end
+
 local Toolgun = {}
 
 function Toolgun.start(): () -> ()
 	local use = Net.event("ToolgunUse")
-	local activePanel = panel or ToolHud.createToolgunPanel(selectMode, selectColor)
+	if not panel then
+		-- Events sent before this point are queued by Roblox and arrive now.
+		Net.event("DupeState").OnClientEvent:Connect(function(clipboard: unknown, slots: unknown)
+			if typeof(clipboard) ~= "string" or typeof(slots) ~= "table" then
+				return
+			end
+			dupeState = { clipboard = clipboard, slots = slots :: { string } }
+			if panel then
+				panel.setDupes(dupeState.clipboard, dupeState.slots)
+			end
+		end)
+	end
+	local activePanel = panel or ToolHud.createToolgunPanel(selectMode, selectColor, dupeAction)
 	panel = activePanel
+	activePanel.setDupes(dupeState.clipboard, dupeState.slots)
 	activePanel.setMode(ToolModes.list[modeIndex].id)
 	activePanel.setColor(colorIndex)
 	activePanel.setVisible(true)

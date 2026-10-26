@@ -7,6 +7,9 @@ src/
   ReplicatedStorage/Shared/
     Config.luau                 caps, limits, tag/attribute names
     PropCatalog.luau            spawnable props, plain data (lune-testable)
+    DupeCodec.luau              dupe format + sanitize, plain data (lune-testable)
+    MapCatalog.luau             maps on the server (Baseplate, Construct, Flatgrass): spawn, collision floor, menu orbit
+    WeaponCatalog.luau          guns: slot, hold, rpm, magazine, spread, damage, rocket; plain data
   ServerScriptService/
     Main.server.luau            boots services
     Services/
@@ -24,18 +27,28 @@ src/
       Hold.luau                 shared hold (Align constraints, PhysgunAim), server-owned physics
       PhysgunService.luau       grab, freeze
       GravityGunService.luau    pull, punt, hold, throw
-      ToolgunService.luau       toolgun modes, thrusters
+      ToolgunService.luau       toolgun modes, thrusters; link builders shared with dupes
+      DupeService.luau          Dupe mode copy, slots, paste, DataStore "Dupes"
+      FeedbackService.luau      SendFeedback -> DataStore "Feedback" + server log
+      MapService.luau           PickMap: move to a map's spawn, respawn there; strips scripts from Workspace.Maps, adds collision floors
+      WeaponService.luau        WeaponFire/Reload/SetPvp: server fire rate, ammo, spread, hitscan, rockets, PvP damage
   StarterPlayerScripts/
     Main.client.luau
     Net.luau, Aim.luau          remote lookup, crosshair raycast
     Ragdoll.luau                G key, Humanoid Physics/GettingUp on RagdollState
     FirstPerson.luau            visible arms + tool aim, sway, view bob, FOV
+    KeyboardLook.luau           arrow keys turn the camera (trackpad play)
+    GunPose.luau                per-gun arm poses (pistol/rifle/launcher), applied by every client to every character
+    MapLighting.luau            per-client sky/lighting/water for the player's map
     Sfx.luau                    local UI sounds
 audio/sfx.py                    synthesizes the SFX -> audio/exports/*.ogg
     UI/SpawnMenu.luau           Q menu, HUD, toast, X remove
     UI/ToolHud.luau, Ui.luau    crosshair, toolgun panel, selection outline, shared theme
     UI/WeaponSelect.luau        HL2-style weapon selector (replaces the hotbar)
-    Tools/                      ToolController (equip detection, F key), Physgun, GravityGun, Toolgun
+    UI/Feedback.luau            feedback text box (button in the Q menu)
+    UI/Ui.luau                  shared Source skin: THEME, button, row, window, list (selector keeps Ui.CLASSIC)
+    UI/MainMenu.luau            Source-style main menu on join / M: camera circles the selected map (MapCatalog orbit), Start Game / Controls / Options dialogs
+    Tools/                      ToolController (equip detection, F key), Physgun, GravityGun, Toolgun, Gun (all guns)
 tests/                          lune specs
 scripts/check.sh                full gate
 ```
@@ -57,6 +70,18 @@ scripts/check.sh                full gate
 | GravityPunt | C->S | `prop: Instance, direction: Vector3` | unit direction, range 30, throws if held |
 | RagdollToggle | C->S | none | 3 burst / 1 per s, alive only |
 | RagdollState | S->C | `boolean` | client sets Humanoid Physics / GettingUp |
+| DupeSave / DupeDelete | C->S | `slot: number` | 3 burst / 1 per 5 s, slot 1-10 |
+| DupeLoad | C->S | `slot: number, position: Vector3` | 2 burst / 1 per 2 s, range 150, caps |
+| WeaponFire | C->S | `id: string, origin: Vector3, direction: Vector3` | 20 burst / 16 per s, then per-gun rpm; origin within 8 studs of head |
+| WeaponReload | C->S | `id: string` | 3 burst / 1 per s, gun equipped |
+| SetPvp | C->S | `on: boolean` | 2 burst / 1 per 5 s |
+| WeaponFx | S->C unreliable | `shooter, id, hit: Vector3` | other players' tracers |
+| PickMap | C->S | `id: string` | 2 burst / 1 per 2 s, MapCatalog allowlist, map must exist |
+| SendFeedback | C->S | `text: string` | 1 per 60 s, 500 chars, UTF-8, control chars stripped |
+| DupeState | S->C | `clipboard: string, slots: {string}` | panel labels |
+
+## Maps
+One server holds every map at once, far apart: the Rojo baseplate at the origin, `Workspace.Maps.Construct` at X +6000, `Workspace.Maps.Flatgrass` at X -10000. The maps live in the place file (inserted from the Creator Store, stripped to geometry, clip walls and terrain water); spawn points and the Flatgrass collision floor live in `MapCatalog`. At boot `MapService` turns collision off on every map part drawn with a `SpecialMesh` (the converter's brush meshes keep a box-sized collision that buries the play area; real collision is the `solid_*` clips and `Poly` triangles). Their lighting/sky/water settings are in `ReplicatedStorage.MapLighting.<id>`, applied on the client by `MapLighting.luau` for the player's `Map` attribute, so two players on different maps each see their own sky.
 
 ## Spawn flow
 1. Client raycasts from screen centre, clamps point into spawn range, fires `SpawnProp(id, point)`.
@@ -68,5 +93,4 @@ scripts/check.sh                full gate
 `Ownership` registry is the source of truth. Tag `SandboxProp` and attribute `OwnerUserId` are informational. A prop's `Destroying` event releases its slot (also covers falling into the void). `PlayerRemoving` destroys that player's props.
 
 ## Planned additions
-- Dupes (step 4): `Services/DupeService.luau`, DataStore access only here.
 - NPCs (step 6): `Services/NpcService.luau`, shared behavior-tree runtime in `Shared/`.

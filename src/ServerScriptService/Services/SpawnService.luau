@@ -28,8 +28,10 @@ local function notify(player: Player, message: string)
 	notifyRemote:FireClient(player, message)
 end
 
+local SpawnService = {}
+
 -- No dropping props on top of someone else.
-local function nearOtherPlayer(player: Player, position: Vector3): boolean
+function SpawnService.nearOtherPlayer(player: Player, position: Vector3): boolean
 	for _, other in Players:GetPlayers() do
 		local root = if other ~= player then Validate.aliveRoot(other) else nil
 		if root and (root.Position - position).Magnitude < Config.SPAWN_PLAYER_CLEARANCE then
@@ -39,7 +41,14 @@ local function nearOtherPlayer(player: Player, position: Vector3): boolean
 	return false
 end
 
-local SpawnService = {}
+-- The one way a prop enters the world: build, register, parent. The caller checks caps and range.
+function SpawnService.spawn(player: Player, def: PropCatalog.PropDef, cframe: CFrame): BasePart
+	local part = PropBuilder.build(def, cframe)
+	VehicleService.buildCar(def, part)
+	Ownership.claim(player, part)
+	part.Parent = propsFolder
+	return part
+end
 
 function SpawnService.init()
 	spawnRemote.OnServerEvent:Connect(function(player: Player, propId: unknown, position: unknown)
@@ -61,15 +70,12 @@ function SpawnService.init()
 			notify(player, `Prop limit reached ({Config.PROP_CAP}). Remove some first.`)
 			return
 		end
-		if nearOtherPlayer(player, position) then
+		if SpawnService.nearOtherPlayer(player, position) then
 			notify(player, "Too close to another player.")
 			return
 		end
 
-		local part = PropBuilder.build(def, PropBuilder.placement(def, position))
-		VehicleService.buildCar(def, part)
-		Ownership.claim(player, part)
-		part.Parent = propsFolder
+		local part = SpawnService.spawn(player, def, PropBuilder.placement(def, position))
 		Sfx.play("spawn", part)
 	end)
 

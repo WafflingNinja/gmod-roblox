@@ -11,9 +11,16 @@ local Sfx = require(script.Parent.Parent.Sfx)
 local Ui = require(script.Parent.Ui)
 local Config = require(ReplicatedStorage.Shared.Config)
 
-local THEME = Ui.THEME
+-- Keeps the HL2 look; every other panel uses the Source skin.
+local THEME = Ui.CLASSIC
 local make = Ui.make
-local label = Ui.label
+
+local function label(text: string, parent: Instance, props: { [string]: any }): TextLabel
+	props.Font = props.Font or THEME.font
+	props.TextColor3 = props.TextColor3 or THEME.text
+	props.TextSize = props.TextSize or 16
+	return Ui.label(text, parent, props)
+end
 
 local SLOTS = 6
 local HIDE_AFTER = 2.5

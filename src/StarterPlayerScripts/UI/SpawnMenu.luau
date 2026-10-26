@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Aim = require(script.Parent.Parent.Aim)
+local Feedback = require(script.Parent.Feedback)
 local Net = require(script.Parent.Parent.Net)
 local Sfx = require(script.Parent.Parent.Sfx)
 local Ui = require(script.Parent.Ui)
@@ -31,64 +32,36 @@ function SpawnMenu.init()
 
 	local gui = make("ScreenGui", { Name = "SandboxMenu", ResetOnSpawn = false }, player:WaitForChild("PlayerGui"))
 
-	-- Spawn list panel
-	local panel = make("Frame", {
-		Name = "Panel",
+	-- Spawn list window
+	local window = Ui.window("Spawn", gui, false, {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 16, 0.5, 0),
-		Size = UDim2.new(0, 260, 0.7, 0),
-		BackgroundColor3 = THEME.panel,
+		Size = UDim2.new(0, 270, 0.7, 0),
 		Visible = false,
-	}, gui)
-	make("UISizeConstraint", { MinSize = Vector2.new(220, 240), MaxSize = Vector2.new(320, 640) }, panel)
-	make("UICorner", { CornerRadius = UDim.new(0, 6) }, panel)
-	make("UIPadding", {
-		PaddingTop = UDim.new(0, 10),
-		PaddingBottom = UDim.new(0, 10),
-		PaddingLeft = UDim.new(0, 10),
-		PaddingRight = UDim.new(0, 10),
-	}, panel)
-	label("Spawn", panel, { Size = UDim2.new(1, 0, 0, 24), TextSize = 20 })
+	})
+	local panel = window.frame
+	make("UISizeConstraint", { MinSize = Vector2.new(230, 260), MaxSize = Vector2.new(320, 660) }, panel)
 
-	local list = make("ScrollingFrame", {
-		Name = "List",
-		Position = UDim2.fromOffset(0, 32),
-		Size = UDim2.new(1, 0, 1, -76),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 4,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-	}, panel)
-	make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, list)
-	make("UIPadding", { PaddingRight = UDim.new(0, 8) }, list)
-
+	local list = Ui.list(window.body, { Size = UDim2.new(1, 0, 1, -40) })
+	local order = 0
 	local lastCategory = ""
-	for index, def in PropCatalog.list do
+	for _, def in PropCatalog.list do
 		if def.category ~= lastCategory then
 			lastCategory = def.category
-			label(string.upper(def.category), list, {
-				Size = UDim2.new(1, 0, 0, 22),
-				TextSize = 12,
-				TextColor3 = THEME.accent,
-				LayoutOrder = index * 2 - 1,
+			order += 1
+			local heading = label(def.category, list, {
+				Size = UDim2.new(1, 0, 0, 24),
+				TextSize = 15,
+				Font = THEME.bold,
+				TextColor3 = THEME.accentText,
+				LayoutOrder = order,
 			})
+			make("UIPadding", { PaddingLeft = UDim.new(0, 8) }, heading)
 		end
-		local row = make("TextButton", {
-			Name = def.id,
-			Text = def.name,
-			Font = THEME.font,
-			TextSize = 15,
-			TextColor3 = THEME.text,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			BackgroundColor3 = THEME.row,
-			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 34),
-			LayoutOrder = index * 2,
-		}, list)
-		make("UIPadding", { PaddingLeft = UDim.new(0, 10) }, row)
-		make("UICorner", { CornerRadius = UDim.new(0, 4) }, row)
-		row.Activated:Connect(function()
+		order += 1
+		local row = Ui.row(def.name, list, order)
+		row.button.Name = def.id
+		row.button.Activated:Connect(function()
 			local point = SpawnMenu.aimPoint()
 			if point then
 				spawnRemote:FireServer(def.id, point)
@@ -96,45 +69,56 @@ function SpawnMenu.init()
 		end)
 	end
 
-	local clearButton = make("TextButton", {
-		Text = "Remove all mine",
-		Font = THEME.font,
-		TextSize = 15,
-		TextColor3 = THEME.text,
-		BackgroundColor3 = THEME.row,
-		BorderSizePixel = 0,
+	local clearButton = Ui.button("Remove all mine", window.body, false, {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.new(1, 0, 0, 34),
-	}, panel)
-	make("UICorner", { CornerRadius = UDim.new(0, 4) }, clearButton)
+		Size = UDim2.new(0.6, -3, 0, 30),
+		Modal = true, -- frees the first-person mouse while the menu is open
+	})
 	clearButton.Activated:Connect(function()
 		clearRemote:FireServer()
 	end)
+	Ui.button("Feedback", window.body, false, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.fromScale(1, 1),
+		Size = UDim2.new(0.4, -3, 0, 30),
+	}).Activated
+		:Connect(Feedback.open)
 
 	-- HUD: prop count + key hints
 	local hud = label("", gui, {
-		Position = UDim2.fromOffset(16, 60), -- under Roblox's top bar, clear of the hotbar
+		Position = UDim2.fromOffset(16, 60), -- under Roblox's top bar, clear of the selector
 		Size = UDim2.fromOffset(0, 20),
 		AutomaticSize = Enum.AutomaticSize.X,
-		TextSize = 14,
+		TextSize = 16,
 		TextColor3 = THEME.muted,
+		TextStrokeTransparency = 0.6,
 	})
 	local function updateHud()
 		local count = player:GetAttribute(Config.COUNT_ATTRIBUTE) or 0
-		hud.Text = `Props {count}/{Config.PROP_CAP}    Q spawn menu    X remove aimed prop    1-6 weapons    G ragdoll`
+		hud.Text =
+			`Props {count}/{Config.PROP_CAP}    Q spawn menu    X remove aimed prop    1-6 weapons    G ragdoll    M menu`
 	end
 	player:GetAttributeChangedSignal(Config.COUNT_ATTRIBUTE):Connect(updateHud)
 	updateHud()
 
-	-- Server messages
-	local toast = label("", gui, {
+	-- Server messages: a small Source panel under the top bar.
+	local toast = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 60),
-		Size = UDim2.fromOffset(0, 24),
+		Size = UDim2.fromOffset(0, 30),
 		AutomaticSize = Enum.AutomaticSize.X,
-		TextColor3 = THEME.accent,
+		BackgroundColor3 = THEME.panel,
+		BorderSizePixel = 0,
 		Visible = false,
+	}, gui)
+	make("UIStroke", { Color = THEME.border }, toast)
+	make("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, toast)
+	local toastText = label("", toast, {
+		Size = UDim2.fromScale(0, 1),
+		AutomaticSize = Enum.AutomaticSize.X,
+		Font = THEME.semibold,
+		TextColor3 = THEME.accentText,
 	})
 	local toastId = 0
 	notifyRemote.OnClientEvent:Connect(function(message: unknown)
@@ -143,7 +127,7 @@ function SpawnMenu.init()
 		end
 		toastId += 1
 		local id = toastId
-		toast.Text = message
+		toastText.Text = message
 		Sfx.play("deny")
 		toast.Visible = true
 		task.delay(TOAST_SECONDS, function()

@@ -27,14 +27,15 @@ Launch after step 4. Steps 5 and 6 ship as updates. Tick a box only when verifie
 - [x] Network ownership policy decided and documented (`docs/SECURITY.md`; `PhysicsGuard` untested)
 
 ## 4. Dupes + launch
-- [ ] Save/load builds (`docs/DUPES.md`)
-- [ ] Feedback button
+- [ ] Save/load builds (`docs/DUPES.md`) (written, codec lune-tested, Studio untested)
+- [ ] Feedback button (written, Studio untested)
 - [ ] Anti-exploit pass (`docs/SECURITY.md` matrix)
 - [ ] 3 friends, 30 min, no crash
 - [ ] **Publish**
 
 ## 5. Chaos
-- [ ] Gun roster as spawn menu (original/imported, license-clean)
+- [x] Maps: Construct and Flatgrass inside the place, main menu with map picker (built 2026-10-26; Construct spawn and Flatgrass standing checked in Studio, Flatgrass fall-through fixed)
+- [ ] Gun roster: Pistol, SMG, Pulse Rifle, RPG in the loadout, server hitscan/rockets, PvP toggle (written, Studio untested; meshes are Store models, not license-clean)
 - [ ] Breakable props
 - [ ] Emotes, posable ragdolls, silly weapon animations
 - [ ] Original recreations of iconic props (`docs/ASSETS.md`)

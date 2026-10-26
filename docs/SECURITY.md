@@ -43,6 +43,16 @@ The game is public from day one. Assume executors.
 | ToolgunUse Wheel | unknown wheel id, non-unit normal, past constraint cap | rejected (not yet Studio-tested) |
 | SpawnProp | car id, position inside another player | cars allowed (1 prop slot); near-player rejected with toast |
 | RagdollToggle | spam, while dead | limiter (3 burst, 1/s) / rejected |
+| ToolgunUse Dupe | other's prop, map part | rejected (owner check); flood-fill only follows own props |
+| DupeSave / DupeDelete | slot 0, 11, 1.5, NaN, string, empty clipboard, spam | rejected / limiter (not yet Studio-tested) |
+| DupeLoad | empty slot, NaN/far position, near another player, over prop/constraint/thruster cap | rejected, whole dupe or nothing (not yet Studio-tested) |
+| WeaponFire | unknown gun, gun not equipped, NaN/non-unit direction, origin far from head, faster than rpm, empty magazine, during reload | rejected; spread, hit and damage are server-side |
+| WeaponFire | hit another player | damage only if both have PvP on; props only pushed when the shooter owns them |
+| WeaponFire RPG | rocket spam | 3 rockets in flight per player, rpm 40 |
+| SetPvp / WeaponReload | non-boolean, spam, gun not equipped | rejected / limiter |
+| PickMap | unknown id, non-string, map missing, spam | rejected / limiter; position comes from the map, never the client |
+| SendFeedback | non-string, 1 MB string, invalid UTF-8, control chars, spam | rejected / cleaned / limiter (1 per 60 s); logged with `%q`, never shown to players |
+| DupeLoad | hand-edited DataStore value (unknown id, NaN, broken link) | `DupeCodec.sanitize` drops it (lune-tested) |
 
 ## Network ownership policy (step 3)
 - Held props (physgun, gravity gun): server-owned while held, back to auto on release.
@@ -54,5 +64,5 @@ The game is public from day one. Assume executors.
 
 ## Open items
 - **Physics griefing:** an owner can still drop huge slabs on others or ram them with a car below the speed cap.
-- **Part cap vs prop cap:** welded dupes will count parts, not props. Revisit in step 4.
+- **Part cap vs prop cap:** each dupe part is one prop, so the 150 cap holds for dupes too.
 - **Trust:** never log player-supplied strings unescaped; never use client text in `Instance.Name`.
