@@ -161,6 +161,20 @@
         "Flashlight": {
           "$className": "RemoteEvent"
         }
+      },
+      "MapLighting": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+        "Construct": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 2.5
+            }
+          }
+        }
       }
     },
     "StarterPlayer": {
@@ -173,6 +187,29 @@
         "$className": "StarterPlayerScripts",
         "$path": "src/StarterPlayerScripts",
         "$ignoreUnknownInstances": true
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$ignoreUnknownInstances": true,
+      "$properties": {
+        "Technology": "Future",
+        "LightingStyle": "Realistic"
+      }
+    },
+    "AvatarSettings": {
+      "$className": "AvatarSettings",
+      "$ignoreUnknownInstances": true,
+      "DefaultAvatarRules": {
+        "$className": "AvatarRules",
+        "$ignoreUnknownInstances": true,
+        "AvatarAnimationRules": {
+          "$className": "AvatarAnimationRules",
+          "$ignoreUnknownInstances": true,
+          "$properties": {
+            "AnimationPacksMode": "StandardR15"
+          }
+        }
       }
     }
   }

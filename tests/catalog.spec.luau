@@ -74,3 +74,6 @@ assert(PropCatalog.halfHeight(PropCatalog.byId.wheel_big) == 2.5, "wheel uses di
 assert(PropCatalog.halfHeight(PropCatalog.byId.crate_small) == 1, "block uses y")
 
 print(`catalog ok ({#PropCatalog.list} props)`)
+
+-- Float Jug must float on terrain water (density 1).
+assert(PropCatalog.byId.float_jug.density < 1, "float_jug must float")

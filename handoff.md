@@ -33,9 +33,12 @@ Gmod-style freeroam sandbox on Roblox. File-based via Rojo; scripts in git, maps
 - **Mirror room**: `MapCatalog` point moved to the wall face (5395, 278, -548.6). `MapService` builds a 28x14 mirror panel (plus a back-to-back panel on the opposite face) with a black frame and tags it; no more SurfaceGui on the buried 155-stud collision box. `Mirror.luau` draws one face per panel at 16 px/stud, reflects the nearby room (140-part cap) and the local character, and stops updating when the camera is behind the glass. **The clone resets `LocalTransparencyModifier` to 0** - the first-person camera module hides the real body with it, which was likely why the old mirror looked empty. Local character only; other players/props are not reflected.
 - **Textures/effects**: `BadAssets.luau` is shared by the server and client; `TextureFix` sweeps are shorter (8 s) and only texture classes get Changed connections, fixing the ~30k connection churn.
 - **Sounds**: empty tool/UI slots now use built-in `rbxasset://sounds/` feedback (click/landing/whoosh); gun sounds unchanged.
+- **Map picker fixed**: `DupeService` and `FeedbackService` called `GetDataStore` at module load. In an unpublished place that throws, `Main.server` aborted on the first one, so `MapService` never started and Start on Construct/Flatgrass left you on the baseplate. Both now pcall the store and degrade to in-memory/log-only when it is unavailable. `MapService` also runs its join setup for players already in `Players`, which Studio can do before scripts start.
 - Docs: `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/TESTING.md` updated for the mirror, map hulls and server shot origin.
 
-**Verified:** `scripts/check.sh` green (stylua, selene, luau-lsp strict, all lune specs including the new muzzle/yaw and mirror-point checks); `rojo build` succeeds; gun orientation was read from Studio screen captures and marker renders before Studio closed. **Not verified:** anything in Play. The mirror room clone, gun hold/grip feel, RPG scale, collision-hull hiding and the texture result need a Studio Play test. Studio was closed during the session, so no live MCP test or publish happened.
+**Verified (previous session):** `scripts/check.sh` green (stylua, selene, luau-lsp strict, all lune specs including the muzzle/yaw and mirror-point checks); `rojo build` succeeds; gun orientation was read from Studio screen captures and marker renders. Nothing was tested in Play then.
+
+**Verified:** Studio Play on 2026-10-26: picking Construct and Flatgrass teleports to each spawn, and dying respawns on the chosen map (`attribute` stays `Construct`/`Flatgrass`). `selene`, `stylua` (LF copies) and all lune specs pass. `luau-lsp` could not run on this machine: `~/.claude/luau/globalTypes.d.luau` is missing. **Not verified:** mirror room clone, gun hold/grip feel, RPG scale, collision-hull hiding and the texture result.
 
 ## Studio state (check first)
 
@@ -43,7 +46,7 @@ Gmod-style freeroam sandbox on Roblox. File-based via Rojo; scripts in git, maps
 - Last test before this session (Play, Pulse Rifle equipped): backpack has all 7 tools, rifle in right hand, ammo HUD 30/30.
 - This session's Studio inspection used `ServerStorage` model bounds and Construct part/raycast queries. A temporary `__KiloGunPreview` folder was created in Edit and removed; `Lighting.Ambient` was set and restored to black. No map or gun model was saved.
 - Studio freeze recipe: after a freeze, Studio shows a hidden "recover file?" dialog that blocks all input. Fix: move `appdata/Roblox/RobloxStudio/AutoSaves/<placeId>_AutoRecovery_*.rbxl` aside, then relaunch. Keep Studio windowed (no F11). Restart: `flatpak kill org.vinegarhq.Vinegar; setsid flatpak run org.vinegarhq.Vinegar`.
-- Studio blocks DataStore (`StudioAccessToApisNotAllowed`). Dupe loads and feedback will not work in Studio until **Game Settings > Security > Allow HTTP / API services** is on.
+- Studio blocks DataStore (`StudioAccessToApisNotAllowed`). Dupe loads and feedback will not work in Studio until **Game Settings > Security > Allow HTTP / API services** is on. The map picker still works: both DataStore consumers degrade instead of aborting `Main.server`.
 
 ## Untested in Studio (do these next)
 

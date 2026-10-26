@@ -2,7 +2,12 @@
 -- Shared look for every panel: Source/Gmod VGUI. Gray dialogs with a 1 px dark border, a blue title bar, raised
 -- gray buttons (blue when primary), list rows that alternate shade and turn blue when selected, SourceSans text.
 -- The weapon selector keeps its own HL2 look (Ui.CLASSIC).
+local CollectionService = game:GetService("CollectionService")
+
 local Ui = {}
+
+-- Modal buttons free the first-person mouse; FirstPerson shows the cursor while one is on screen.
+Ui.FREES_MOUSE_TAG = "FreesMouse"
 
 Ui.THEME = {
 	panel = Color3.fromRGB(62, 64, 68),
@@ -47,6 +52,9 @@ function Ui.make(className: string, props: { [string]: any }, parent: Instance?)
 	local instance = Instance.new(className)
 	for key, value in props do
 		(instance :: any)[key] = value
+	end
+	if props.Modal == true then
+		CollectionService:AddTag(instance, Ui.FREES_MOUSE_TAG)
 	end
 	instance.Parent = parent
 	return instance
@@ -140,7 +148,7 @@ function Ui.row(text: string, parent: Instance, order: number, props: { [string]
 	}
 end
 
-export type Window = { frame: Frame, body: Frame, close: TextButton? }
+export type Window = { frame: Frame, bar: Frame, body: Frame, close: TextButton? }
 
 -- Gray dialog with a blue title bar (and a close button when `closable`). Position and size come in `props`.
 function Ui.window(title: string, parent: Instance, closable: boolean, props: { [string]: any }?): Window
@@ -189,7 +197,50 @@ function Ui.window(title: string, parent: Instance, closable: boolean, props: { 
 		PaddingLeft = UDim.new(0, 10),
 		PaddingRight = UDim.new(0, 10),
 	}, body)
-	return { frame = frame, body = body, close = close }
+	return { frame = frame, bar = bar, body = body, close = close }
+end
+
+-- Drag `frame` by `handle` (a window's title bar), kept inside its parent so it can't be lost off-screen.
+function Ui.draggable(frame: GuiObject, handle: GuiObject)
+	local UserInputService = game:GetService("UserInputService")
+	local dragStart: Vector3? = nil
+	local startPosition = frame.Position
+	local startCorner = Vector2.zero
+	local function isPress(input: InputObject): boolean
+		return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+	end
+	handle.InputBegan:Connect(function(input)
+		if isPress(input) then
+			dragStart = input.Position
+			startPosition = frame.Position
+			startCorner = frame.AbsolutePosition
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		local origin = dragStart
+		local parent = frame.Parent
+		if
+			not origin
+			or not parent
+			or not parent:IsA("GuiBase2d")
+			or (
+				input.UserInputType ~= Enum.UserInputType.MouseMovement
+				and input.UserInputType ~= Enum.UserInputType.Touch
+			)
+		then
+			return
+		end
+		local delta = input.Position - origin
+		local low = parent.AbsolutePosition - startCorner
+		local high = low + parent.AbsoluteSize - frame.AbsoluteSize
+		frame.Position = startPosition
+			+ UDim2.fromOffset(math.clamp(delta.X, low.X, high.X), math.clamp(delta.Y, low.Y, high.Y))
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if isPress(input) then
+			dragStart = nil
+		end
+	end)
 end
 
 -- Sunken list area (scrolls), the backdrop for Ui.row.

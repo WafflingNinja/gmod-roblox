@@ -32,8 +32,13 @@ local function getGui(): ScreenGui
 	if gui then
 		return gui
 	end
-	local newGui =
-		make("ScreenGui", { Name = "ToolHud", ResetOnSpawn = false }, Players.LocalPlayer:WaitForChild("PlayerGui"))
+	-- IgnoreGuiInset: otherwise the top bar pushes the GUI down and the dot sits ~29 px below the real screen centre
+	-- that Aim raycasts through.
+	local newGui = make(
+		"ScreenGui",
+		{ Name = "ToolHud", ResetOnSpawn = false, IgnoreGuiInset = true },
+		Players.LocalPlayer:WaitForChild("PlayerGui")
+	)
 	crosshair = make("Frame", {
 		Name = "Crosshair",
 		AnchorPoint = Vector2.new(0.5, 0.5),

@@ -1,7 +1,7 @@
 --!strict
 -- Mirror panels. MapService builds a thin panel on a real wall face and tags it; this draws a viewport on
 -- its room-facing side. The viewport holds a reflected copy of the nearby room and of your character, and its
--- camera is your camera reflected across the panel, so you see a convincing planar reflection. Only one face
+-- camera sits at your eye framing the panel, so you see a convincing planar reflection. Only one face
 -- per panel is drawn, at a capped resolution, and panels stop rendering up the map.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -25,6 +25,7 @@ type Candidate = { part: BasePart, distance: number }
 
 local player = Players.LocalPlayer
 local entries: { [BasePart]: Entry } = {}
+local MAX_FOV = 120 -- degrees; past this the viewport camera cannot cover the glass from a steep angle
 
 local function reflect(v: Vector3, normal: Vector3): Vector3
 	return v - 2 * v:Dot(normal) * normal
@@ -34,14 +35,28 @@ local function reflectedPosition(position: Vector3, origin: Vector3, normal: Vec
 	return origin + reflect(position - origin, normal)
 end
 
--- Mirror a CFrame across the plane. The back vector is negated so the basis stays right-handed.
+-- Mirror a CFrame across the plane. A true reflection is left-handed, which a CFrame cannot hold, so the right
+-- vector is flipped back. Boxes, wedges and limbs are symmetric along X, so the shape still reads as mirrored.
 local function reflectedCFrame(cf: CFrame, origin: Vector3, normal: Vector3): CFrame
 	return CFrame.fromMatrix(
 		reflectedPosition(cf.Position, origin, normal),
-		reflect(cf.RightVector, normal),
+		-reflect(cf.RightVector, normal),
 		reflect(cf.UpVector, normal),
-		-reflect(cf.LookVector, normal)
+		reflect(cf.ZVector, normal)
 	)
+end
+
+-- Distance from a point to the nearest point of a part's box. Map walls are big mesh brushes whose centres sit far
+-- from the mirror even when their surface is right next to it.
+local function boxDistance(part: BasePart, point: Vector3): number
+	local localPoint = part.CFrame:PointToObjectSpace(point)
+	local half = part.Size / 2
+	local clamped = Vector3.new(
+		math.clamp(localPoint.X, -half.X, half.X),
+		math.clamp(localPoint.Y, -half.Y, half.Y),
+		math.clamp(localPoint.Z, -half.Z, half.Z)
+	)
+	return (localPoint - clamped).Magnitude
 end
 
 local function faceNormal(part: BasePart, id: Enum.NormalId): Vector3
@@ -59,6 +74,7 @@ local function buildRoom(face: Face, origin: Vector3, normal: Vector3)
 		if descendant:IsA("BasePart") then
 			local offset = descendant.Position - origin
 			local depth = offset:Dot(normal)
+			local distance = boxDistance(descendant, origin)
 			if
 				descendant.Transparency < 0.98
 				and descendant.Size.Magnitude > 0.5
@@ -67,9 +83,9 @@ local function buildRoom(face: Face, origin: Vector3, normal: Vector3)
 				and descendant.Name ~= "Mirror"
 				and descendant.Name ~= "MirrorFrame"
 				and not CollectionService:HasTag(descendant, Config.MIRROR_TAG)
-				and offset.Magnitude <= Config.MIRROR_ROOM_RANGE
+				and distance <= Config.MIRROR_ROOM_RANGE
 			then
-				table.insert(candidates, { part = descendant, distance = offset.Magnitude })
+				table.insert(candidates, { part = descendant, distance = distance })
 			end
 		end
 	end
@@ -115,7 +131,11 @@ end
 
 -- A copy of the character with no scripts, joints, tools or accessories. Parts are moved by hand every frame.
 local function copyOf(character: Model): Model?
+	-- Player characters are not Archivable, and Clone() returns nil for them.
+	local archivable = character.Archivable
+	character.Archivable = true
 	local copy = character:Clone()
+	character.Archivable = archivable
 	if not copy then
 		return nil
 	end
@@ -158,14 +178,28 @@ local function update(entry: Entry, camera: Camera, character: Model?)
 	local origin = part.Position
 	for _, face in entry.faces do
 		local normal = faceNormal(part, face.id)
-		local view = camera.CFrame
-		if (view.Position - origin):Dot(normal) <= 0 then
+		local eye = camera.CFrame.Position
+		local toEye = eye - origin
+		local distance = toEye:Dot(normal)
+		if distance <= 0.1 then
 			continue -- camera is behind the mirror; this face cannot be seen
 		end
-		local position = reflectedPosition(view.Position, origin, normal)
-		face.camera.FieldOfView = camera.FieldOfView
-		face.camera.CFrame =
-			CFrame.lookAt(position, position + reflect(view.LookVector, normal), reflect(view.UpVector, normal))
+		-- EgoMoose's portal trick. The room and body copies are reflected behind the glass; the viewport camera sits at
+		-- your eye looking straight into the glass, so the panel projects to an upright rectangle with no skew. The
+		-- viewport is then stretched and shifted on the surface so its picture lands exactly on the glass. The
+		-- SurfaceGui clips whatever falls outside the panel.
+		local up = part.CFrame.UpVector
+		local right = (-normal):Cross(up)
+		local dx = toEye:Dot(right)
+		local dy = toEye:Dot(up)
+		local halfWidth, halfHeight = part.Size.X / 2, part.Size.Y / 2
+		local extent = math.max(math.abs(dx) + halfWidth, math.abs(dy) + halfHeight)
+		extent = math.min(extent, distance * math.tan(math.rad(MAX_FOV / 2)))
+		face.camera.FieldOfView = math.deg(2 * math.atan(extent / distance))
+		face.camera.CFrame = CFrame.fromMatrix(eye, right, up, normal)
+		local pixels = Config.MIRROR_PIXELS_PER_STUD
+		face.viewport.Position = UDim2.fromOffset((halfWidth + dx) * pixels, (halfHeight - dy) * pixels)
+		face.viewport.Size = UDim2.fromOffset(2 * extent * pixels, 2 * extent * pixels)
 
 		if face.owner ~= character then
 			if face.clone then
@@ -212,8 +246,10 @@ local function attach(part: BasePart)
 
 	local viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Reflection"
+	viewport.AnchorPoint = Vector2.new(0.5, 0.5)
+	viewport.Position = UDim2.fromScale(0.5, 0.5)
 	viewport.Size = UDim2.fromScale(1, 1)
-	viewport.BackgroundColor3 = Color3.fromRGB(18, 20, 24)
+	viewport.BackgroundColor3 = Color3.fromRGB(70, 78, 88)
 	viewport.Ambient = Color3.fromRGB(150, 155, 165)
 	viewport.LightColor = Color3.fromRGB(255, 255, 255)
 	viewport.LightDirection = Vector3.new(-1, -1, -1)
@@ -242,6 +278,7 @@ local function attach(part: BasePart)
 	local origin = part.Position
 	local normal = faceNormal(part, faceId)
 	buildRoom(face, origin, normal)
+	print(`Mirror: {part:GetFullName()} reflects {#room:GetChildren()} room parts`)
 	gui.Parent = part
 	entries[part] = { part = part, faces = { face } }
 end

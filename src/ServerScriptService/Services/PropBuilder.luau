@@ -85,12 +85,21 @@ function PropBuilder.build(def: PropCatalog.PropDef, cframe: CFrame): BasePart
 	part:SetAttribute("BaseSize", part.Size) -- the Scale tool multiplies this
 	part.Color = Color3.fromRGB(def.color[1], def.color[2], def.color[3])
 	part.Material = materials[def.material]
-	if def.elasticity then
+	if def.elasticity or def.density then
 		local base = PhysicalProperties.new(part.Material)
-		part.CustomPhysicalProperties =
-			PhysicalProperties.new(base.Density, base.Friction, def.elasticity, base.FrictionWeight, 100)
+		part.CustomPhysicalProperties = PhysicalProperties.new(
+			def.density or base.Density,
+			base.Friction,
+			def.elasticity or base.Elasticity,
+			base.FrictionWeight,
+			if def.elasticity then 100 else base.ElasticityWeight
+		)
 	end
 	part.CFrame = cframe
+	if def.float then
+		part:SetAttribute("FloatLift", def.float)
+		CollectionService:AddTag(part, Config.FLOAT_TAG)
+	end
 	addDetails(part, def)
 	return part
 end

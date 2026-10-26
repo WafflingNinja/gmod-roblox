@@ -1,6 +1,8 @@
 --!strict
 -- HL2-style weapon selector, replaces the Roblox hotbar. 1-6 open a slot (press again to cycle inside it),
 -- the wheel moves through every weapon while open, LMB confirms, RMB cancels, and it hides itself after a moment.
+-- With the selector closed the wheel switches weapons at once, except when the Toolgun is out (its wheel picks
+-- a mode) or the Physgun is holding a prop (its wheel pushes and pulls); use 1-6 there.
 -- Slot, order and label are attributes ToolService puts on each Tool.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -175,9 +177,10 @@ function WeaponSelect.init()
 		end
 	end
 
-	local function show(tool: Tool, tools: { Tool })
+	-- `picking` leaves the selector waiting for LMB; the wheel's quick switch only shows it.
+	local function show(tool: Tool, tools: { Tool }, picking: boolean)
 		selected = tool
-		open = true
+		open = picking
 		gui.Enabled = true
 		render(tools)
 		Sfx.play("ui_tick")
@@ -202,7 +205,7 @@ function WeaponSelect.init()
 			return
 		end
 		local current = if open and selected then table.find(inSlot, selected) else nil
-		show(inSlot[if current then current % #inSlot + 1 else 1], tools)
+		show(inSlot[if current then current % #inSlot + 1 else 1], tools, true)
 	end
 
 	local function step(direction: number)
@@ -211,7 +214,37 @@ function WeaponSelect.init()
 			return
 		end
 		local current = (if selected then table.find(tools, selected) else nil) or 1
-		show(tools[(current - 1 + direction) % #tools + 1], tools)
+		show(tools[(current - 1 + direction) % #tools + 1], tools, true)
+	end
+
+	local function quickSwitch(direction: number)
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local held = character and character:FindFirstChildOfClass("Tool")
+		if not humanoid then
+			return
+		end
+		if held and held.Name == Config.TOOLGUN then
+			return
+		end
+		if
+			held
+			and held.Name == Config.PHYSGUN
+			and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		then
+			return
+		end
+		local tools = owned()
+		if #tools == 0 then
+			return
+		end
+		local current = if held then table.find(tools, held) else nil
+		local nextTool = if current
+			then tools[(current - 1 + direction) % #tools + 1]
+			elseif direction > 0 then tools[1]
+			else tools[#tools]
+		humanoid:EquipTool(nextTool)
+		show(nextTool, tools, false)
 	end
 
 	local function confirm()
@@ -244,8 +277,14 @@ function WeaponSelect.init()
 	end)
 
 	UserInputService.InputChanged:Connect(function(input, processed)
-		if open and not processed and input.UserInputType == Enum.UserInputType.MouseWheel then
-			step(if input.Position.Z > 0 then -1 else 1)
+		if processed or input.UserInputType ~= Enum.UserInputType.MouseWheel then
+			return
+		end
+		local direction = if input.Position.Z > 0 then -1 else 1
+		if open then
+			step(direction)
+		else
+			quickSwitch(direction)
 		end
 	end)
 end

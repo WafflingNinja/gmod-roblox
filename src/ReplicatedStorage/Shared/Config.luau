@@ -1,5 +1,6 @@
 --!strict
 return table.freeze({
+	BUILD = "v12 (two-handed, cursor in menus)", -- shown in the HUD; bump on every change so a stale Studio is obvious
 	PROP_CAP = 150,
 	SPAWN_RANGE = 150, -- studs, character to requested spawn point
 	SPAWN_BUCKET_CAPACITY = 5,
@@ -10,6 +11,7 @@ return table.freeze({
 	CLEAR_REFILL_PER_SECOND = 0.2,
 	PROP_TAG = "SandboxProp",
 	SEAT_TAG = "SandboxSeat", -- VehicleSeats VehicleService drives
+	FLOAT_TAG = "SandboxFloat", -- props FloatService lifts in water; lift (mass units) in the FloatLift attribute
 	OWNER_ATTRIBUTE = "OwnerUserId",
 	COUNT_ATTRIBUTE = "PropCount", -- on Player, replicated to the client HUD
 
@@ -46,9 +48,13 @@ return table.freeze({
 	THRUSTER_REFILL_PER_SECOND = 10,
 	PROP_MAX_SPEED = 400, -- studs/s; faster props get server-owned and clamped (PhysicsGuard)
 	SPAWN_PLAYER_CLEARANCE = 6, -- studs; no spawning on top of another player
-	CAR_MAX_SPEED = 90, -- studs/s at the wheel rim
-	CAR_TORQUE_PER_MASS = 40, -- wheel motor torque = chassis mass * this * radius
-	CAR_STEER_ANGLE = 30, -- degrees, servo front wheels
+	CAR_MAX_SPEED = 60, -- studs/s at the wheel rim; 90 spun the wheels out and steering lost grip
+	CAR_TORQUE_PER_MASS = 20, -- wheel motor torque = car mass * this * radius; at 40 the wheels spun past tire grip and steering lost bite
+	CAR_STEER_ANGLE = 35, -- degrees, servo front wheels
+	CAR_DIFFERENTIAL = 0.35, -- at full steer, outer wheels get 1 + this of the speed, inner 1 - this
+	CAR_TURN_RADIUS = 18, -- studs; steer assist aims for yaw rate = speed / this at full steer
+	CAR_MAX_YAW_RATE = 2.2, -- rad/s cap on that
+	CAR_STEER_ASSIST = 90, -- assist torque per unit of mass per rad/s of yaw-rate error
 	RAGDOLL_GETUP = 3, -- seconds before a toggled ragdoll stands up
 	RAGDOLL_BUCKET_CAPACITY = 3,
 	RAGDOLL_REFILL_PER_SECOND = 1,
@@ -61,6 +67,7 @@ return table.freeze({
 	DUPE_STORE_REFILL_PER_SECOND = 0.2,
 	DUPE_SAVE_DELAY = 15, -- seconds; slot changes are batched into one DataStore write
 	MAP_ATTRIBUTE = "Map", -- on Player: MapCatalog id the player spawns on
+	MAP_LADDER_TEXTURE = "rbxassetid://98078659072409", -- original brushed metal, replaces the converter's empty ladder TextureId
 	MAP_BUCKET_CAPACITY = 2,
 	MAP_REFILL_PER_SECOND = 0.5,
 	AMMO_ATTRIBUTE = "Ammo", -- on each gun Tool: rounds in the magazine (server-set)

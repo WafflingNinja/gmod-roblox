@@ -26,6 +26,8 @@ local sounds: { [string]: SoundDef } = {
 	reload = { id = "rbxassetid://139048584127232", volume = 1.6 },
 	dry_fire = { id = "rbxasset://sounds/volume_slider.ogg", volume = 0.4 },
 	explosion = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 1 },
+	impact_light = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.8 },
+	impact_heavy = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 0.35 },
 }
 
 return table.freeze(sounds)

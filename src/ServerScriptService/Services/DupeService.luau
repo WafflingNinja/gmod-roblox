@@ -51,7 +51,20 @@ local deleteRemote = remotes.DupeDelete :: RemoteEvent
 local stateRemote = remotes.DupeState :: RemoteEvent
 local notifyRemote = remotes.Notify :: RemoteEvent
 
-local store = DataStoreService:GetDataStore("Dupes")
+-- An unpublished place (or a DataStore outage) throws here, and a throw at load time would abort Main.server
+-- before every service after this one starts, MapService included: picking a map then did nothing. Dupes still
+-- work in memory for the session; only saving is disabled.
+local store: DataStore? = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore("Dupes")
+	end)
+	if ok then
+		store = result
+	else
+		warn(`Dupes: DataStore unavailable, dupes will not save this session: {result}`)
+	end
+end
 local sessions: { [Player]: Session } = {}
 local writes = 0 -- DataStore writes in flight; BindToClose waits for them
 local loadLimiter = RateLimiter.new(Config.DUPE_LOAD_BUCKET_CAPACITY, Config.DUPE_LOAD_REFILL_PER_SECOND)
@@ -91,6 +104,10 @@ local function flush(userId: number, session: Session)
 	if not session.loaded or session.writing then
 		return
 	end
+	local db = store
+	if not db then
+		return
+	end
 	session.writing = true
 	writes += 1
 	while session.dirty do
@@ -103,7 +120,7 @@ local function flush(userId: number, session: Session)
 		local ok, err = false, nil
 		for attempt = 1, RETRIES do
 			ok, err = pcall(function()
-				store:UpdateAsync(`u{userId}`, function()
+				db:UpdateAsync(`u{userId}`, function()
 					return doc
 				end)
 			end)
@@ -138,9 +155,14 @@ local function changed(player: Player, session: Session)
 end
 
 local function load(player: Player, session: Session)
+	local db = store
+	if not db then
+		notify(player, "Dupes will not be saved this session.")
+		return
+	end
 	for attempt = 1, RETRIES do
 		local ok, value = pcall(function()
-			return store:GetAsync(`u{player.UserId}`)
+			return db:GetAsync(`u{player.UserId}`)
 		end)
 		if sessions[player] ~= session then
 			return

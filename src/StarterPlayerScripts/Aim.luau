@@ -7,9 +7,16 @@ local player = Players.LocalPlayer
 
 export type Hit = { origin: Vector3, direction: Vector3, result: RaycastResult? }
 
+local ignored: Instance? = nil
+
 local Aim = {}
 
--- Ray from the camera through the screen centre, ignoring our own character.
+-- In third person the camera sits behind the car we drive; ThirdPerson sets that car here so aiming skips it.
+function Aim.setIgnored(instance: Instance?)
+	ignored = instance
+end
+
+-- Ray from the camera through the screen centre, ignoring our own character (and the Aim.setIgnored instance).
 function Aim.cast(range: number): Hit?
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -19,7 +26,11 @@ function Aim.cast(range: number): Hit?
 	local ray = camera:ViewportPointToRay(viewport.X / 2, viewport.Y / 2)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = if player.Character then { player.Character } else {}
+	local filter: { Instance } = if player.Character then { player.Character } else {}
+	if ignored and ignored.Parent then
+		table.insert(filter, ignored)
+	end
+	params.FilterDescendantsInstances = filter
 	return {
 		origin = ray.Origin,
 		direction = ray.Direction,

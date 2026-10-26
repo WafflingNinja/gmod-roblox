@@ -2,12 +2,15 @@
 -- Makes locked first person feel less like a floating camera: with a tool out, your own arms and the tool
 -- stay visible and aim where you look, the tool sways behind fast mouse moves, and the view bobs while
 -- walking. All local: other players see the normal character. R15 rigs only (shoulder frames differ on R6).
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local GunPose = require(script.Parent.GunPose)
+local ThirdPerson = require(script.Parent.ThirdPerson)
+local Ui = require(script.Parent.UI.Ui)
 
 local fieldOfView = 80 -- the menu's Settings page changes it
 local BOB_SPEED = 9 -- radians per second at walk speed 16
@@ -17,8 +20,36 @@ local BOB_ROLL = math.rad(0.6)
 local SWAY_PER_PIXEL = 0.002 -- radians of lag per pixel of mouse movement
 local SWAY_LIMIT = math.rad(6)
 local SWAY_RETURN = 10 -- how fast the lag settles, per second
-local ARMS = { "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperArm", "LeftLowerArm", "LeftHand" }
+local RIGHT_ARM = { "RightUpperArm", "RightLowerArm", "RightHand" }
+local LEFT_ARM = { "LeftUpperArm", "LeftLowerArm", "LeftHand" }
 local SHOULDERS = { "RightShoulder", "LeftShoulder" }
+-- Two-handed tools (a LeftGrip on the handle), first person only: both shoulders move in, forward and down
+-- (torso space: +X right, +Y up, -Z forward). The gun sits nearer the middle, still pointing straight, and the
+-- left hand reaches the foregrip instead of stretching from the left shoulder across the camera.
+local TWO_HAND_SHIFT: { [string]: CFrame } = {
+	RightShoulder = CFrame.new(-0.5, -0.3, -0.4),
+	LeftShoulder = CFrame.new(0.6, -0.3, -0.8),
+}
+
+-- A menu with a Modal button is on screen (Q, M, feedback). Roblox frees the mouse for it but still reports
+-- MouseBehavior as LockCenter, so the cursor check needs this too.
+local function menuFreesMouse(): boolean
+	for _, button in CollectionService:GetTagged(Ui.FREES_MOUSE_TAG) do
+		local node: Instance? = button
+		local shown = true
+		while node and not node:IsA("LayerCollector") do
+			if node:IsA("GuiObject") and not node.Visible then
+				shown = false
+				break
+			end
+			node = node.Parent
+		end
+		if shown and node and (node :: LayerCollector).Enabled then
+			return true
+		end
+	end
+	return false
+end
 
 local FirstPerson = {}
 
@@ -55,6 +86,10 @@ function FirstPerson.init()
 	end
 
 	RunService:BindToRenderStep("FirstPersonView", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+		-- No mouse cursor while the mouse is locked to the centre (it showed as a hand over the crosshair); menus that
+		-- free the mouse (Q, M) get it back.
+		UserInputService.MouseIconEnabled = UserInputService.MouseBehavior ~= Enum.MouseBehavior.LockCenter
+			or menuFreesMouse()
 		local camera = Workspace.CurrentCamera
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -67,7 +102,11 @@ function FirstPerson.init()
 		camera.FieldOfView = fieldOfView
 		findShoulders(character)
 
-		local holding = character:FindFirstChildOfClass("Tool") ~= nil
+		local tool = character:FindFirstChildOfClass("Tool")
+		local holding = tool ~= nil
+		local handle = tool and tool:FindFirstChild("Handle")
+		local twoHanded = handle ~= nil and handle:FindFirstChild("LeftGrip") ~= nil
+		local shifted = twoHanded and not ThirdPerson.isActive()
 		local delta = UserInputService:GetMouseDelta()
 		local settle = math.max(0, 1 - dt * SWAY_RETURN)
 		sway = Vector2.new(
@@ -76,17 +115,20 @@ function FirstPerson.init()
 		)
 		-- The camera module hides the whole body in first person every frame; bring the arms back after it.
 		if holding then
-			for _, name in ARMS do
-				local part = character:FindFirstChild(name)
-				if part and part:IsA("BasePart") then
-					part.LocalTransparencyModifier = 0
+			for _, arm in (if twoHanded then { RIGHT_ARM, LEFT_ARM } else { RIGHT_ARM }) :: { { string } } do
+				for _, name in arm do
+					local part = character:FindFirstChild(name)
+					if part and part:IsA("BasePart") then
+						part.LocalTransparencyModifier = 0
+					end
 				end
 			end
 		end
 		local pitch = math.asin(math.clamp(camera.CFrame.LookVector.Y, -1, 1))
 		for motor, c0 in shoulders do
+			local shift = if shifted then TWO_HAND_SHIFT[motor.Name] or CFrame.identity else CFrame.identity
 			motor.C0 = if holding
-				then c0 * CFrame.Angles(pitch + sway.Y, sway.X, 0) * GunPose.offset(character, motor.Name)
+				then shift * c0 * CFrame.Angles(pitch + sway.Y, sway.X, 0) * GunPose.offset(character, motor.Name)
 				else c0
 		end
 

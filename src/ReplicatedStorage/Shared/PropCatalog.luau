@@ -40,6 +40,8 @@ export type PropDef = {
 	material: string,
 	upright: boolean?,
 	elasticity: number?,
+	density: number?, -- below 1 floats on terrain water
+	float: number?, -- extra lift in water, in mass units (FloatService); Roblox buoyancy alone is too weak for rafts
 	details: { Detail }?,
 	className: SeatClass?,
 	vehicle: Vehicle?,
@@ -169,6 +171,23 @@ local list: { PropDef } = {
 			part("Cylinder", { 0.2, 2.55, 2.55 }, { 1.1, 0, 0 }, STEEL, "Metal"),
 			part("Cylinder", { 0.1, 2.2, 2.2 }, { 1.78, 0, 0 }, DARK, "Metal"),
 			part("Cylinder", { 0.14, 0.45, 0.45 }, { 1.84, 0.55, 0 }, STEEL, "Metal"),
+		},
+	},
+	{
+		id = "float_jug",
+		name = "Float Jug",
+		category = "Props",
+		shape = "Cylinder",
+		size = { 3, 2.2, 2.2 },
+		color = { 70, 150, 220 },
+		material = "Plastic",
+		upright = true,
+		density = 0.15,
+		float = 60, -- 10 jugs hold up a platform of 4 concrete slabs
+		details = {
+			part("Cylinder", { 0.15, 2.3, 2.3 }, { -0.9, 0, 0 }, WHITE, "Plastic"),
+			part("Cylinder", { 0.15, 2.3, 2.3 }, { 0.9, 0, 0 }, WHITE, "Plastic"),
+			part("Cylinder", { 0.5, 0.9, 0.9 }, { 1.7, 0, 0 }, WHITE, "Plastic"),
 		},
 	},
 	{

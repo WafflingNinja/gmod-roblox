@@ -191,7 +191,8 @@ local function buildMirror(model: Instance, pick: FacePick)
 	frame.Name = "MirrorFrame"
 	frame.Size =
 		Vector3.new(Config.MIRROR_WIDTH + Config.MIRROR_FRAME * 2, Config.MIRROR_HEIGHT + Config.MIRROR_FRAME * 2, 0.2)
-	frame.CFrame = cf * CFrame.new(0, 0, -0.12)
+	-- Behind the glass (+Z is toward the wall). In front, the bigger black frame covered the whole reflection.
+	frame.CFrame = cf * CFrame.new(0, 0, 0.1)
 	frame.Anchored = true
 	frame.CanCollide = false
 	frame.CanQuery = false
@@ -248,10 +249,10 @@ function MapService.init()
 				warn(`MapService: removed script {descendant:GetFullName()}`)
 				descendant:Destroy()
 			elseif descendant:IsA("BasePart") and descendant.Material == Enum.Material.ForceField then
-				-- The Source converter marks invisible collision hulls and some surfaces as ForceField.
-				-- solid_* hulls have no visible mesh: hide them (they still collide) instead of turning them
-				-- into opaque gray slabs that cover the real textured brushes. Other ForceField surfaces are
-				-- visible parts of the map and only need a neutral material.
+				-- The Source converter marks invisible collision hulls as ForceField: solid_* clips and ~720 plain
+				-- "Part" hulls under Structur. None carry a texture; as plastic they showed as blank white/red
+				-- walls over the real textured brushes. Hide them (they still collide). Anything with a visual
+				-- child is a real surface and only needs a neutral material.
 				local hasVisual = false
 				for _, child in descendant:GetChildren() do
 					if
@@ -265,7 +266,7 @@ function MapService.init()
 						break
 					end
 				end
-				if string.sub(descendant.Name, 1, 6) == "solid_" and not hasVisual then
+				if not hasVisual then
 					descendant.Transparency = 1
 					descendant.Reflectance = 0
 					descendant.CastShadow = false
@@ -282,11 +283,13 @@ function MapService.init()
 					part.CanQuery = false
 					part.CanTouch = false
 					-- The converter left 124 metal ladders (the only visible FileMeshes with an empty TextureId) as
-					-- Carpet material with no texture. They render flat gray. Make them look like the metal they are.
+					-- Carpet material with no texture. They rendered flat gray. Use the original brushed-metal texture
+					-- generated for this project (not an extracted Gmod asset) and let it show at full brightness.
 					if descendant.TextureId == "" then
+						descendant.TextureId = Config.MAP_LADDER_TEXTURE
 						part.Material = Enum.Material.Metal
-						part.Color = Color3.fromRGB(88, 92, 98)
-						part.Reflectance = 0.05
+						part.Color = Color3.fromRGB(255, 255, 255)
+						part.Reflectance = 0.02
 					end
 				end
 			end
@@ -323,7 +326,7 @@ function MapService.init()
 		sendTo(player, def)
 	end)
 
-	Players.PlayerAdded:Connect(function(player: Player)
+	local function onPlayerAdded(player: Player)
 		player:SetAttribute(Config.MAP_ATTRIBUTE, MapCatalog.DEFAULT)
 		player.CharacterAdded:Connect(function()
 			local def = MapCatalog.byId[player:GetAttribute(Config.MAP_ATTRIBUTE) :: string]
@@ -331,7 +334,12 @@ function MapService.init()
 				task.defer(sendTo, player, def) -- after the SpawnLocation has placed the character
 			end
 		end)
-	end)
+	end
+	Players.PlayerAdded:Connect(onPlayerAdded)
+	-- Studio can have the local player in Players before this script starts, so PlayerAdded never fires for them.
+	for _, player in Players:GetPlayers() do
+		onPlayerAdded(player)
+	end
 end
 
 return MapService

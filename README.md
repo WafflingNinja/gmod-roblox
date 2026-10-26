@@ -24,6 +24,7 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 | Click prop in menu | Spawn at crosshair |
 | X | Remove the prop you aim at (yours only) |
 | 1-6, again to cycle, wheel while open, LMB / RMB | weapon selector: open slot, pick, confirm / cancel (1 = Physgun, Gravity Gun; 6 = Toolgun) |
+| Wheel (selector closed) | switch weapon at once; not while the Toolgun is out or the Physgun holds a prop (use 1-6 there) |
 | Physgun: LMB hold, wheel, R+mouse, RMB | grab, push/pull, rotate, freeze |
 | Gravity Gun: RMB, LMB | pull or hold (again drops), punt or throw |
 | Toolgun: wheel, LMB, RMB | pick mode, use, shrink (Scale) / big wheel (Wheel) |
@@ -33,6 +34,7 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 | F | Flashlight on / off |
 | G | Ragdoll / stand up |
 | WASD in a Driver Seat | drive (cars from the Cars tab, or seat + Wheel tool builds) |
+| C in a seat | third-person chase camera; guns and tools still aim at the crosshair |
 
 ## Docs
 

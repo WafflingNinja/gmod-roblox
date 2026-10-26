@@ -1,4 +1,9 @@
 --!strict
+-- Wait for the first full copy of the game. Modules index ReplicatedStorage.Shared directly when required, and
+-- PlayerScripts can start before it has all arrived ("WeaponCatalog is not a valid member of Shared").
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
 local ui = script.Parent:WaitForChild("UI", 10)
 assert(ui, "StarterPlayerScripts.UI missing")
 local tools = script.Parent:WaitForChild("Tools", 10)
@@ -23,6 +28,8 @@ local flashlightModule = script.Parent:WaitForChild("Flashlight", 10)
 assert(flashlightModule and flashlightModule:IsA("ModuleScript"), "Flashlight module missing")
 local mirrorModule = script.Parent:WaitForChild("Mirror", 10)
 assert(mirrorModule and mirrorModule:IsA("ModuleScript"), "Mirror module missing")
+local thirdPersonModule = script.Parent:WaitForChild("ThirdPerson", 10)
+assert(thirdPersonModule and thirdPersonModule:IsA("ModuleScript"), "ThirdPerson module missing")
 local mapLightingModule = script.Parent:WaitForChild("MapLighting", 10)
 assert(mapLightingModule and mapLightingModule:IsA("ModuleScript"), "MapLighting module missing")
 require(menuModule).init()
@@ -34,5 +41,6 @@ require(keyboardLookModule).init()
 require(gunPoseModule).init()
 require(flashlightModule).init()
 require(mirrorModule).init()
+require(thirdPersonModule).init()
 require(mapLightingModule).init()
 require(mainMenuModule).init()

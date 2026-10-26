@@ -2,10 +2,13 @@
 -- Main menu, Source/Gmod style: the camera circles the selected map behind a text-link menu on the left, and
 -- each page opens as a gray dialog with a blue title bar. Opens on join, M toggles it. The full-screen root is
 -- a Modal button, which frees the first-person mouse while the menu is open. Settings last for the session.
+-- On join it opens with a short intro: fade from black, the camera eases out, the title and a welcome rise in,
+-- then the links. Dialogs pop open and drag by their title bar. Starting a map fades through black.
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,11 +26,14 @@ local THEME = Ui.THEME
 
 local TITLE = "waffles mod"
 local ORBIT_SECONDS = 120 -- one full circle around the map
+local INTRO_ZOOM = 0.55 -- the intro camera starts at this share of the orbit radius and eases out
+local INTRO_ZOOM_SECONDS = 5
+local LINK_STAGGER = 0.12 -- seconds between links appearing
 local CONTROLS = {
 	{ "WASD", "walk" },
 	{ "Arrow keys", "look around (Options to turn off)" },
 	{ "Mouse / trackpad", "look; tap = left click, two-finger tap = right click" },
-	{ "Two-finger scroll", "mouse wheel (push/pull, toolgun mode)" },
+	{ "Two-finger scroll", "mouse wheel (switch weapon; physgun push/pull, toolgun mode)" },
 	{ "Q", "spawn menu, frees the mouse" },
 	{ "X", "remove the prop you aim at" },
 	{ "1-6", "weapon selector" },
@@ -37,6 +43,7 @@ local CONTROLS = {
 	{ "V", "fire thrusters" },
 	{ "F", "flashlight" },
 	{ "G", "ragdoll / stand up" },
+	{ "C (in a seat)", "third-person camera, guns still aim" },
 	{ "LMB / R", "fire / reload (guns)" },
 	{ "M", "this menu" },
 }
@@ -46,7 +53,13 @@ local text = Ui.label
 local button = Ui.button
 local list = Ui.list
 
--- Closable Source dialog right of the menu links.
+local function tween(instance: Instance, seconds: number, goal: { [string]: any }, style: Enum.EasingStyle?)
+	TweenService
+		:Create(instance, TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal)
+		:Play()
+end
+
+-- Closable, draggable Source dialog right of the menu links.
 local function dialog(title: string, parent: Instance): (Frame, Frame, TextButton)
 	local window = Ui.window(title, parent, true, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -55,6 +68,8 @@ local function dialog(title: string, parent: Instance): (Frame, Frame, TextButto
 		Visible = false,
 	})
 	make("UISizeConstraint", { MinSize = Vector2.new(380, 300), MaxSize = Vector2.new(640, 460) }, window.frame)
+	make("UIScale", {}, window.frame)
+	Ui.draggable(window.frame, window.bar)
 	return window.frame, window.body, window.close :: TextButton
 end
 
@@ -134,38 +149,60 @@ function MainMenu.init()
 		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) }),
 	}, shade)
 
-	-- Left column: logo, current map, text links.
+	-- Left column: logo, welcome, current map, text links.
 	local left = make("Frame", {
 		Position = UDim2.fromScale(0.06, 0.14),
-		Size = UDim2.fromOffset(360, 420),
+		Size = UDim2.fromOffset(360, 450),
 		BackgroundTransparency = 1,
 	}, root)
-	text(TITLE, left, {
+	local title = text(TITLE, left, {
 		Size = UDim2.new(1, 0, 0, 72),
 		Font = THEME.bold,
 		TextSize = 72,
 		TextStrokeTransparency = 0.75,
 	})
-	local currentLine = text("", left, {
+	local welcome = text(`Hey {player.DisplayName}, welcome in. Build something.`, left, {
 		Position = UDim2.fromOffset(4, 74),
+		Size = UDim2.new(1, 0, 0, 22),
+		TextSize = 19,
+		TextColor3 = THEME.accentText,
+	})
+	local currentLine = text("", left, {
+		Position = UDim2.fromOffset(4, 98),
 		Size = UDim2.new(1, 0, 0, 20),
 		TextSize = 16,
 		TextColor3 = THEME.muted,
 	})
 	local links = make("Frame", {
-		Position = UDim2.fromOffset(2, 120),
-		Size = UDim2.new(1, 0, 1, -120),
+		Position = UDim2.fromOffset(2, 144),
+		Size = UDim2.new(1, 0, 1, -144),
 		BackgroundTransparency = 1,
 	}, left)
 	make("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, links)
 
+	-- Black curtain for the intro and map changes. Outside `root`, so it stays up while the menu closes.
+	local curtain: Frame = make("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 50,
+	}, gui)
+
 	local dialogs: { [string]: Frame } = {}
 	local linkButtons: { [string]: TextButton } = {}
+	local allLinks: { TextButton } = {}
 	local openDialog: string? = nil
 	local function showDialog(name: string?)
 		openDialog = name
 		for dialogName, frame in dialogs do
+			local opening = dialogName == name and not frame.Visible
 			frame.Visible = dialogName == name
+			local scale = frame:FindFirstChildOfClass("UIScale")
+			if opening and scale then
+				scale.Scale = 0.9
+				tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+			end
 		end
 		for linkName, link in linkButtons do
 			link.TextColor3 = if linkName == name then THEME.accentText else THEME.text
@@ -190,12 +227,14 @@ function MainMenu.init()
 			b.TextColor3 = if linkButtons[label] and openDialog == label then THEME.accentText else THEME.text
 		end)
 		b.Activated:Connect(onClick)
+		table.insert(allLinks, b)
 		return b
 	end
 
 	-- Camera circles the selected map while the menu is open.
 	local orbitAngle = 0
 	local orbitDef = MapCatalog.byId[MapCatalog.DEFAULT]
+	local introStart: number? = nil
 	local function startOrbit()
 		RunService:BindToRenderStep("MenuOrbit", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
 			local camera = Workspace.CurrentCamera
@@ -208,8 +247,14 @@ function MainMenu.init()
 			end
 			local orbit = orbitDef.orbit
 			local center = Vector3.new(orbit.center[1], orbit.center[2], orbit.center[3])
+			local zoom = 1
+			if introStart and not GuiService.ReducedMotionEnabled then
+				local t = math.min((os.clock() - introStart) / INTRO_ZOOM_SECONDS, 1)
+				zoom = 1 - (1 - INTRO_ZOOM) * (1 - t) ^ 3
+			end
+			local radius = orbit.radius * zoom
 			local offset =
-				Vector3.new(math.cos(orbitAngle) * orbit.radius, orbit.height, math.sin(orbitAngle) * orbit.radius)
+				Vector3.new(math.cos(orbitAngle) * radius, orbit.height * zoom, math.sin(orbitAngle) * radius)
 			camera.CFrame = CFrame.lookAt(center + offset, center)
 		end)
 	end
@@ -441,9 +486,21 @@ function MainMenu.init()
 			showDialog(nil)
 		end)
 	end
+	-- Fade through black so the jump to another map isn't a hard cut.
+	local starting = false
 	start.Activated:Connect(function()
-		pickRemote:FireServer(selected)
-		setOpen(false)
+		if starting then
+			return
+		end
+		starting = true
+		tween(curtain, 0.4, { BackgroundTransparency = 0 }, Enum.EasingStyle.Sine)
+		task.delay(0.45, function()
+			pickRemote:FireServer(selected)
+			setOpen(false)
+			task.wait(0.35)
+			tween(curtain, 0.9, { BackgroundTransparency = 1 }, Enum.EasingStyle.Sine)
+			starting = false
+		end)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, processed)
@@ -452,8 +509,49 @@ function MainMenu.init()
 		end
 	end)
 
+	-- Intro: hold on black, fade in while the camera eases out, title and welcome rise in, then the links one by
+	-- one, then the Start Game dialog.
+	local reduced = GuiService.ReducedMotionEnabled
+	curtain.BackgroundTransparency = 0
+	shade.BackgroundTransparency = 1
+	for _, label in { title, welcome, currentLine } do
+		label.TextTransparency = 1
+		label.TextStrokeTransparency = 1
+	end
+	for _, b in allLinks do
+		b.TextTransparency = 1
+	end
+	local titleHome = title.Position
+	local welcomeHome = welcome.Position
+	if not reduced then
+		title.Position = titleHome + UDim2.fromOffset(0, 24)
+		welcome.Position = welcomeHome + UDim2.fromOffset(0, 16)
+	end
+	introStart = os.clock()
 	setOpen(true)
-	showDialog("Start Game")
+	task.delay(0.6, function()
+		tween(curtain, 2.2, { BackgroundTransparency = 1 }, Enum.EasingStyle.Sine)
+		tween(shade, 2.2, { BackgroundTransparency = 0 }, Enum.EasingStyle.Sine)
+	end)
+	task.delay(1.3, function()
+		tween(title, 1.2, { TextTransparency = 0, TextStrokeTransparency = 0.75, Position = titleHome })
+	end)
+	task.delay(1.9, function()
+		tween(welcome, 1, { TextTransparency = 0, Position = welcomeHome })
+		tween(currentLine, 1, { TextTransparency = 0 })
+	end)
+	for i, b in allLinks do
+		local padding = make("UIPadding", { PaddingLeft = UDim.new(0, if reduced then 0 else 28) }, b)
+		task.delay(2.5 + i * LINK_STAGGER, function()
+			tween(b, 0.6, { TextTransparency = 0 })
+			tween(padding, 0.6, { PaddingLeft = UDim.new(0, 0) })
+		end)
+	end
+	task.delay(2.6 + #allLinks * LINK_STAGGER, function()
+		if root.Visible and openDialog == nil then
+			showDialog("Start Game")
+		end
+	end)
 end
 
 return MainMenu

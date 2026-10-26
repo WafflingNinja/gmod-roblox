@@ -9,7 +9,18 @@ local RateLimiter = require(script.Parent.RateLimiter)
 
 local sendRemote = ReplicatedStorage.Remotes.SendFeedback :: RemoteEvent
 local notifyRemote = ReplicatedStorage.Remotes.Notify :: RemoteEvent
-local store = DataStoreService:GetDataStore("Feedback")
+-- An unpublished place throws here. Feedback still prints to the server log; only the DataStore copy is skipped.
+local store: DataStore? = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore("Feedback")
+	end)
+	if ok then
+		store = result
+	else
+		warn(`Feedback: DataStore unavailable, feedback will only be logged: {result}`)
+	end
+end
 local limiter = RateLimiter.new(1, 1 / Config.FEEDBACK_COOLDOWN)
 
 -- Valid UTF-8 only, control characters out, trimmed, at most FEEDBACK_MAX characters.
@@ -41,11 +52,14 @@ function FeedbackService.init()
 			return
 		end
 		print(string.format("Feedback %d: %q", player.UserId, text))
-		local ok, err = pcall(function()
-			store:SetAsync(`{os.time()}-{player.UserId}`, { userId = player.UserId, text = text })
-		end)
-		if not ok then
-			warn(`Feedback: save failed for {player.UserId}: {err}`)
+		local db = store
+		if db then
+			local ok, err = pcall(function()
+				db:SetAsync(`{os.time()}-{player.UserId}`, { userId = player.UserId, text = text })
+			end)
+			if not ok then
+				warn(`Feedback: save failed for {player.UserId}: {err}`)
+			end
 		end
 		notifyRemote:FireClient(player, "Thanks, feedback sent.")
 	end)

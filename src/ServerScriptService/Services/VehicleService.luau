@@ -73,9 +73,13 @@ local function driveWheel(
 	end
 	local radius = entry.wheel.Size.Y / 2
 	local power = throttle
+	local side = if (entry.wheel.Position - seat.Position):Dot(seat.CFrame.RightVector) >= 0 then 1 else -1
 	if tank then
-		local side = if (entry.wheel.Position - seat.Position):Dot(seat.CFrame.RightVector) >= 0 then 1 else -1
 		power = math.clamp(throttle - steer * side, -1, 1)
+	else
+		-- Differential: in a turn the outer wheels spin faster than the inner ones. Same speed on every wheel
+		-- (with this much torque) locks the axles together and the car plows straight instead of turning.
+		power = throttle * (1 - steer * side * Config.CAR_DIFFERENTIAL)
 	end
 	-- Rolling forward spins about up x forward; flip for wheels whose hinge axis points the other way.
 	local forwardSpin = seat.CFrame.UpVector:Cross(seat.CFrame.LookVector)
@@ -87,16 +91,56 @@ local function driveWheel(
 	end
 end
 
+-- Wheel grip alone turns cars unreliably (one slipping wheel and the car plows on). A torque about the seat's up
+-- axis pulls the yaw rate toward speed / turn radius, so steering always bites and reverse steers like a car.
+-- With no steer input it damps spin. Off when nobody drives.
+local function steerAssist(seat: VehicleSeat, steer: number, occupied: boolean, mass: number)
+	local assist = seat:FindFirstChild("SteerAssist")
+	if not assist then
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "SteerAssistAttachment"
+		attachment.Parent = seat
+		local torque = Instance.new("Torque")
+		torque.Name = "SteerAssist"
+		torque.RelativeTo = Enum.ActuatorRelativeTo.World
+		torque.Attachment0 = attachment
+		torque.Parent = seat
+		assist = torque
+	end
+	local torque = assist :: Torque
+	local root = seat.AssemblyRootPart
+	if not occupied or not root then
+		torque.Torque = Vector3.zero
+		return
+	end
+	local up = seat.CFrame.UpVector
+	local forwardSpeed = root.AssemblyLinearVelocity:Dot(seat.CFrame.LookVector)
+	local target = -steer
+		* math.clamp(forwardSpeed / Config.CAR_TURN_RADIUS, -Config.CAR_MAX_YAW_RATE, Config.CAR_MAX_YAW_RATE)
+	local current = root.AssemblyAngularVelocity:Dot(up)
+	torque.Torque = up * (target - current) * mass * Config.CAR_STEER_ASSIST
+end
+
 -- ponytail: scans every chassis per occupied seat each frame; index chassis by assembly if this shows in profiles.
 local function drive(seat: VehicleSeat, occupied: boolean)
 	local throttle = if occupied then seat.ThrottleFloat else 0
 	local steer = if occupied then seat.SteerFloat else 0
-	local torque = seat.AssemblyMass * Config.CAR_TORQUE_PER_MASS
 	local root = seat.AssemblyRootPart
+	local lists: { { Wheel } } = {}
+	-- Wheels are their own assemblies (hinged), so count them: a light chassis on heavy wheels (the buggy) got
+	-- almost no torque from the chassis mass alone and would not move.
+	local mass = seat.AssemblyMass
 	for chassis, list in wheels do
-		if chassis.AssemblyRootPart ~= root then
-			continue
+		if chassis.AssemblyRootPart == root then
+			table.insert(lists, list)
+			for _, entry in list do
+				mass += entry.wheel.AssemblyMass
+			end
 		end
+	end
+	steerAssist(seat, steer, occupied, mass)
+	local torque = mass * Config.CAR_TORQUE_PER_MASS
+	for _, list in lists do
 		local tank = true
 		for _, entry in list do
 			tank = tank and entry.steer == nil
