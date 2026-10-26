@@ -42,7 +42,7 @@ Launch after step 4. Steps 5 and 6 ship as updates. Tick a box only when verifie
 
 ## 6. NPC AI
 - [ ] Voice lines recorded and exported (`docs/VOICE.md`, recorder in `audio/voice/`)
-- [ ] Roster: Guest, Noob, John Doe (all friendly), with voices
+- [ ] Roster: Guest, Noob, Citizen (all friendly), with voices
 - [ ] Ragdoll NPC base
 - [ ] Behavior (friendly, hostile, follow) per `docs/NPC.md`
 - [ ] NPC cap + perf budget

@@ -16,6 +16,7 @@ Silhouette and function only, own proportions and textures:
 - Wooden crate, red barrel, gas can, cinder block, beach ball (done as primitives)
 - Traffic cone, pallet, tire, oil drum variants, sawblade, propane tank, bowling ball, watermelon
 - Wheel set, thruster, balloon (tool props)
+- Citizen NPC: blue work shirt and dark pants from parts; voice and lines are the developer's own (`docs/VOICE.md`)
 
 ## Pipeline
 Blender model -> FBX/GLB -> Studio import -> mesh id -> new entry in `PropCatalog` (extend with `meshId` and `scale`) -> lune spec still passes.
