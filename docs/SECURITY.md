@@ -46,7 +46,7 @@ The game is public from day one. Assume executors.
 | ToolgunUse Dupe | other's prop, map part | rejected (owner check); flood-fill only follows own props |
 | DupeSave / DupeDelete | slot 0, 11, 1.5, NaN, string, empty clipboard, spam | rejected / limiter (not yet Studio-tested) |
 | DupeLoad | empty slot, NaN/far position, near another player, over prop/constraint/thruster cap | rejected, whole dupe or nothing (not yet Studio-tested) |
-| WeaponFire | unknown gun, gun not equipped, NaN/non-unit direction, origin far from head, faster than rpm, empty magazine, during reload | rejected; spread, hit and damage are server-side |
+| WeaponFire | unknown gun, gun not equipped, NaN/non-unit direction, faster than rpm, empty magazine, during reload | rejected; the claimed camera origin is ignored (the server raycasts from its own head), spread, hit and damage are server-side |
 | WeaponFire | hit another player | damage only if both have PvP on; props only pushed when the shooter owns them |
 | WeaponFire RPG | rocket spam | 3 rockets in flight per player, rpm 40 |
 | SetPvp / WeaponReload | non-boolean, spam, gun not equipped | rejected / limiter |

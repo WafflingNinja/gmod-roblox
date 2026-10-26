@@ -33,6 +33,7 @@ end
 
 -- Original C0 of each joint we touch, so we can put it back.
 local originals: { [Motor6D]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+local posed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 type Hand = { tool: Tool, control: IKControl }
 local hands: { [Model]: Hand } = setmetatable({}, { __mode = "k" }) :: any
@@ -71,6 +72,22 @@ local function pose(character: Model, skip: { [string]: boolean }?)
 	end
 end
 
+-- Put the joints back once the gun is gone; otherwise the launcher's bent elbow would stick after unequipping.
+local function restore(character: Model, skip: { [string]: boolean }?)
+	for _, joint in JOINTS do
+		if skip and skip[joint] then
+			continue
+		end
+		local motor = character:FindFirstChild(joint, true)
+		if motor and motor:IsA("Motor6D") then
+			local original = originals[motor]
+			if original then
+				motor.C0 = original
+			end
+		end
+	end
+end
+
 -- Two-handed tools: the left hand follows the tool's LeftGrip. Rebuilt when the tool changes, dropped on unequip.
 local function reachLeftHand(character: Model)
 	local tool = character:FindFirstChildOfClass("Tool")
@@ -106,7 +123,14 @@ function GunPose.init()
 		for _, player in Players:GetPlayers() do
 			local character = player.Character
 			if character then
-				pose(character, if player == localPlayer then OWN_SKIP else nil)
+				local skip = if player == localPlayer then OWN_SKIP else nil
+				if holdOf(character) then
+					pose(character, skip)
+					posed[character] = true
+				elseif posed[character] then
+					restore(character, skip)
+					posed[character] = nil
+				end
 				reachLeftHand(character)
 			end
 		end

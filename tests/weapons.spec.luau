@@ -11,6 +11,15 @@ for _, def in WeaponCatalog.list do
 	seen[def.id] = true
 	assert(WeaponCatalog.byId[def.id] == def, "byId mismatch: " .. def.id)
 	assert(def.hold == "pistol" or def.hold == "rifle" or def.hold == "launcher", "hold: " .. def.id)
+	-- The tool's forward is +Z. Rotating the model's own barrel direction by `yaw` must point it there.
+	assert(#def.muzzle == 3, "muzzle axis: " .. def.id)
+	assert(def.scale == nil or def.scale > 0.1, "model scale: " .. def.id)
+	local mx, my, mz = def.muzzle[1], def.muzzle[2], def.muzzle[3]
+	assert(math.abs(mx * mx + my * my + mz * mz - 1) < 0.01, "muzzle axis must be unit length: " .. def.id)
+	local a = math.rad(def.yaw)
+	local rx = mx * math.cos(a) + mz * math.sin(a)
+	local rz = -mx * math.sin(a) + mz * math.cos(a)
+	assert(math.abs(rx) < 0.01 and math.abs(my) < 0.01 and rz > 0.99, "yaw does not aim " .. def.id .. " forward")
 	assert(def.slot >= 2 and def.slot <= 5, "guns live in slots 2-5: " .. def.id)
 	assert(def.rpm > 0 and def.rpm <= 1200, "rpm: " .. def.id)
 	assert(def.magazine >= 1 and def.reload > 0, "ammo: " .. def.id)

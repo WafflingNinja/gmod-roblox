@@ -1,79 +1,56 @@
 --!strict
--- Strips texture references that Roblox 403s / has removed, which otherwise
--- render as white or red placeholders in test mode. Plugins (SuperCharacterLoader
--- and friends) re-inject these after load, so we sweep repeatedly, not just once.
---
--- SurfaceAppearance is deliberately not handled: its ColorMap/NormalMap/... are
--- PluginSecurity, so a LocalScript cannot even read them. Touching them throws,
--- and an error here used to abort the whole sweep, leaving every later texture
--- unfixed. Anything we cannot inspect safely is left alone.
+-- Strips texture references that Roblox 403s / has removed, which otherwise render as white or red
+-- placeholders. Plugins (SuperCharacterLoader and friends) re-inject these after load, so we sweep for the
+-- first few seconds and watch the instances that actually carried a bad id. Only those instances get a
+-- Changed connection; watching every MeshPart in the 30k-part maps cost more than the sweep itself.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local BAD = {
-	"149162327", -- (Invalid audio) removed for ToS violations, wired into a texture slot
-	"7948622114", -- private decal by another user, not approved for this experience
-	"203785492", -- "Pop Close Sound" (audio) used as an image
+local BadAssets = require(ReplicatedStorage.Shared.BadAssets)
+
+local SWEEP_SECONDS = 8
+local SWEEP_EVERY = 1.5
+
+-- These classes realistically have their texture swapped in place by a plugin. MeshPart/SpecialMesh ids are
+-- set when the map is built; they are stripped by the sweep but do not need a per-instance watcher.
+local WATCH = {
+	Decal = true,
+	Texture = true,
+	ParticleEmitter = true,
+	Beam = true,
+	Trail = true,
+	Fire = true,
+	Smoke = true,
+	Sparkles = true,
+	ImageLabel = true,
+	ImageButton = true,
+	ImageHandleAdornment = true,
 }
 
-local SWEEP_SECONDS = 20
-local SWEEP_EVERY = 0.5
+local watched: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
-local TEXTURE_PROP = {
-	Decal = "Texture",
-	Texture = "Texture",
-	ImageLabel = "Image",
-	ImageButton = "Image",
-	MeshPart = "TextureID",
-	SpecialMesh = "TextureId",
-}
-
-local function isBad(value: unknown): boolean
-	if typeof(value) ~= "string" then
-		return false
-	end
-	local s = value :: string
-	if s == "" then
-		return false
-	end
-	for _, id in ipairs(BAD) do
-		if string.find(s, id, 1, true) then
-			return true
-		end
-	end
-	return false
-end
-
-local function strip(inst: Instance)
-	local prop = TEXTURE_PROP[inst.ClassName]
-	if not prop then
+local function watch(instance: Instance)
+	if watched[instance] then
 		return
 	end
-
-	-- Some instances are locked/restricted. Never let one of them throw out of
-	-- the sweep or the DescendantAdded handler.
-	local okRead, value = pcall(function()
-		return (inst :: any)[prop]
-	end)
-	if not okRead or not isBad(value) then
-		return
-	end
-
-	pcall(function()
-		(inst :: any)[prop] = ""
+	watched[instance] = true
+	instance.Changed:Connect(function()
+		BadAssets.strip(instance)
 	end)
 end
 
 local function sweep()
 	for _, inst in ipairs(game:GetDescendants()) do
-		strip(inst)
+		if BadAssets.strip(inst) and BadAssets.textureProp[inst.ClassName] then
+			watch(inst)
+		end
 	end
 end
 
--- Property changes are what actually fire when a plugin rewrites an id in place.
 game.DescendantAdded:Connect(function(inst)
-	strip(inst)
-	inst.Changed:Connect(function()
-		strip(inst)
-	end)
+	BadAssets.strip(inst)
+	if WATCH[inst.ClassName] then
+		watch(inst)
+	end
 end)
 
 sweep()

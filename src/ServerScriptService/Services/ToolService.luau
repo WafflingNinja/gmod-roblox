@@ -165,16 +165,17 @@ local GRIPS: { [string]: CFrame } = {
 }
 
 -- A Tool around a mesh model from ServerStorage. The handle is invisible and sits at the grip; the model is turned so
--- its barrel points down -Z and placed forward of the hand, with a Muzzle at its front. Two-handed holds get a LeftGrip
--- attachment at the foregrip (GunPose puts the left hand on it). Scripts inside store models are removed. nil if the
--- model is missing.
+-- its barrel points down +Z (the way the right hand holds it) and placed forward of the hand, with a Muzzle at its
+-- front. Two-handed holds get a LeftGrip attachment at the foregrip (GunPose puts the left hand on it). Scripts inside
+-- store models are removed. nil if the model is missing.
 local function buildModelTool(
 	name: string,
 	tip: string,
 	modelName: string,
 	yaw: number,
 	hold: string,
-	magazine: number?
+	magazine: number?,
+	scale: number?
 ): Tool?
 	local source = ServerStorage:FindFirstChild(modelName)
 	if not source then
@@ -183,6 +184,9 @@ local function buildModelTool(
 	end
 	local model = Instance.new("Model")
 	local copy = source:Clone()
+	if scale and scale > 0 and scale ~= 1 then
+		copy:ScaleTo(scale)
+	end
 	for _, d in copy:GetDescendants() do
 		if d:IsA("LuaSourceContainer") then
 			d:Destroy()
@@ -191,8 +195,9 @@ local function buildModelTool(
 	copy.Parent = model
 	local box, size = model:GetBoundingBox()
 	local length = math.max(size.X, size.Z)
-	-- Bounding box centre ends up a third of the gun ahead of the hand, slightly above it.
-	local target = CFrame.new(0, 0.15, -length / 3) * CFrame.Angles(0, math.rad(yaw), 0)
+	-- Bounding box centre ends up a third of the gun ahead of the hand, slightly above it. +Z is the tool's
+	-- forward, so the stock sits just behind the hand and the barrel runs ahead of it.
+	local target = CFrame.new(0, 0.15, length / 3) * CFrame.Angles(0, math.rad(yaw), 0)
 	model:PivotTo(target * box:ToObjectSpace(model:GetPivot()))
 
 	local tool = Instance.new("Tool")
@@ -200,7 +205,11 @@ local function buildModelTool(
 	tool.ToolTip = tip
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	tool.Grip = GRIPS[hold] or GRIPS.rifle
+	local gripFrame = GRIPS[hold] or GRIPS.rifle
+	if scale then
+		gripFrame = CFrame.new(gripFrame.Position * scale) * gripFrame.Rotation
+	end
+	tool.Grip = gripFrame
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
 	handle.Size = Vector3.new(0.3, 0.3, 0.3)
@@ -228,12 +237,12 @@ local function buildModelTool(
 	model.Parent = tool
 	local muzzle = Instance.new("Attachment")
 	muzzle.Name = "Muzzle"
-	muzzle.Position = Vector3.new(0, 0.15, -length / 3 - length / 2)
+	muzzle.Position = Vector3.new(0, 0.15, length / 3 + length / 2)
 	muzzle.Parent = handle
 	if hold ~= "pistol" then
 		local grip = Instance.new("Attachment")
 		grip.Name = "LeftGrip"
-		grip.Position = Vector3.new(0, -0.3, -length * 0.4)
+		grip.Position = Vector3.new(0, -0.3, length * 0.4)
 		grip.Parent = handle
 	end
 	if magazine then
@@ -273,7 +282,7 @@ local LOADOUT: { LoadoutEntry } = {
 for _, def in WeaponCatalog.list do
 	table.insert(LOADOUT, {
 		build = function()
-			return buildModelTool(def.id, def.label, def.model, def.yaw, def.hold, def.magazine)
+			return buildModelTool(def.id, def.label, def.model, def.yaw, def.hold, def.magazine, def.scale)
 		end,
 		label = def.label,
 		slot = def.slot,

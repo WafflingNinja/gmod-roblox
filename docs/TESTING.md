@@ -38,9 +38,12 @@ Pure logic = anything that does not need the Roblox engine. Keep data modules fr
 - [ ] Die on Construct: respawn on Construct. Second player on Flatgrass sees Flatgrass sky, first still sees Construct's.
 - [ ] Settings: sensitivity, FOV, arrow-key look on/off and speed all take effect. Arrow keys turn and pitch the view; with look off they walk again.
 - [ ] Props spawn, tools and dupes work on both maps.
+- [ ] Construct: no gray `solid_*` slabs covering rooms; the `GlitchEffect` near the servers is gone (no white particle squares).
+- [ ] Mirror room: walk into it and look at the wall. A framed mirror shows your character and the room, not a black rectangle. Walk to the other side of that wall: the back panel (if present) shows its own side.
 
 ### Guns
-- [ ] Each gun: points forward in first person, both hands on it (launcher on the shoulder); another player sees the same hold.
+- [ ] Each gun: points forward in first person (barrel away from you), both hands on it (launcher on the shoulder); another player sees the same hold. Especially check the SMG and RPG after the `+Z` forward fix.
+- [ ] Muzzle flash, tracer start and rocket smoke appear at the front of the barrel, not behind the hand.
 - [ ] Fire rate, magazine count, R reload, auto-reload on empty; RPG explodes and pushes own props.
 - [ ] Shooting another player does nothing until both turn PvP on (M > Options).
 - [ ] `WeaponFire:FireServer("AR2", Vector3.new(0,1e6,0), Vector3.yAxis)`: nothing. Spam faster than rpm: extra shots ignored.

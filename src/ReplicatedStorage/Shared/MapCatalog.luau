@@ -6,7 +6,8 @@
 -- orbit = where the main menu camera circles: world centre (the maps sit at fixed offsets), radius, height.
 export type Orbit = { center: { number }, radius: number, height: number }
 export type Floor = { y: number, min: { number }, max: { number } } -- min/max = {x, z}
--- mirrors = world points on mirror walls; MapService tags the part nearest each one.
+-- mirrors = world points on the room-facing surface of a mirror wall. MapService finds the nearest wall face and
+-- builds a real mirror panel there (a huge collision box behind the wall is not used).
 export type MapDef = {
 	id: string,
 	name: string,
@@ -31,7 +32,7 @@ local list: { MapDef } = {
 		blurb = "Buildings, ramps and a pool.",
 		model = "Construct",
 		spawn = { 5202, 268.29, -481 }, -- ground floor of the main building, where Gmod spawns you
-		mirrors = { { 5395, 278, -558 } },
+		mirrors = { { 5395, 278, -548.6 } },
 		orbit = { center = { 5208, 270, -265 }, radius = 180, height = 35 },
 	},
 	{

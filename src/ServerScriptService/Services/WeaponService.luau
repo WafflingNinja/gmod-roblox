@@ -1,7 +1,8 @@
 --!strict
--- Guns. The client sends only "I fired this gun from here, this way"; the server checks the gun is equipped, the
--- fire rate, the magazine, and that the origin is at the shooter's head, then adds spread and does the raycast or
--- launches the rocket itself. Ammo lives in the Tool's Ammo attribute (server-set, replicated to the HUD).
+-- Guns. The client sends only "I fired this gun, this way"; the server checks the gun is equipped, the fire rate
+-- and the magazine, then raycasts from its own copy of the shooter's head and adds spread (or launches the rocket).
+-- The claimed origin is ignored, so third-person aim and a spoofed camera position cannot move the shot.
+-- Ammo lives in the Tool's Ammo attribute (server-set, replicated to the HUD).
 -- Props only take impulses from their owner's guns; players only take damage when both sides have PvP on.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -157,7 +158,12 @@ local function stepRockets(dt: number)
 		local step = rocket.velocity * dt
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { rocket.part, rocket.owner.Character :: any }
+		local ignore: { Instance } = { rocket.part }
+		local character = rocket.owner.Character
+		if character then
+			table.insert(ignore, character)
+		end
+		params.FilterDescendantsInstances = ignore
 		local hit = Workspace:Raycast(from, step, params)
 		if hit or now > rocket.expires or not rocket.owner.Parent then
 			table.remove(rockets, i)
@@ -194,7 +200,7 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 		return
 	end
 	local def = WeaponCatalog.byId[id]
-	if not def or not Validate.isFiniteVector(origin) or not Validate.isFiniteVector(direction) then
+	if not def or not Validate.isFiniteVector(direction) then
 		return
 	end
 	if direction.Magnitude < 0.9 or direction.Magnitude > 1.1 then
@@ -203,9 +209,6 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 	local tool = Validate.equippedTool(player, def.id)
 	local head = headOf(player)
 	if not tool or not head or not Validate.aliveRoot(player) then
-		return
-	end
-	if (origin - head.Position).Magnitude > Config.FIRE_ORIGIN_DRIFT then
 		return
 	end
 	local now = os.clock()
@@ -228,16 +231,26 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 	end
 
 	local aim = direction.Unit
+	local aimOrigin = head.Position
 	if def.rocket then
-		launch(player, def, origin + aim * 2, aim)
+		-- Start the rocket at the barrel when the server can see it, so it does not pop out of the player's face.
+		local at = aimOrigin + aim * 2
+		local muzzle = handle and handle:FindFirstChild("Muzzle")
+		if muzzle and muzzle:IsA("Attachment") then
+			local point = muzzle.WorldPosition
+			if (point - aimOrigin).Magnitude <= 15 then
+				at = point
+			end
+		end
+		launch(player, def, at, aim)
 		return
 	end
 	local shot = spread(aim, def.spread)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { player.Character :: any }
-	local hit = Workspace:Raycast(origin, shot * def.range, params)
-	local finish = if hit then hit.Position else origin + shot * def.range
+	local hit = Workspace:Raycast(aimOrigin, shot * def.range, params)
+	local finish = if hit then hit.Position else aimOrigin + shot * def.range
 	if hit then
 		push(player, hit.Instance, shot, def.impulse)
 		hurt(player, hit.Instance, def.damage)

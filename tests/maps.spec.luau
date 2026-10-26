@@ -13,6 +13,12 @@ for _, def in MapCatalog.list do
 	if def.floor then
 		assert(def.floor.min[1] < def.floor.max[1] and def.floor.min[2] < def.floor.max[2], "floor extent: " .. def.id)
 	end
+	for _, mirror in def.mirrors or {} do
+		assert(#mirror == 3, "mirror point needs xyz: " .. def.id)
+		for axis = 1, 3 do
+			assert(mirror[axis] == mirror[axis] and math.abs(mirror[axis]) < 1e6, "bad mirror point: " .. def.id)
+		end
+	end
 end
 local default = MapCatalog.byId[MapCatalog.DEFAULT]
 assert(default and default.model == nil, "default map must be the always-present baseplate")

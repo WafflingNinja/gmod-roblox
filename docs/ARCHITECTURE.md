@@ -72,7 +72,7 @@ scripts/check.sh                full gate
 | RagdollState | S->C | `boolean` | client sets Humanoid Physics / GettingUp |
 | DupeSave / DupeDelete | C->S | `slot: number` | 3 burst / 1 per 5 s, slot 1-10 |
 | DupeLoad | C->S | `slot: number, position: Vector3` | 2 burst / 1 per 2 s, range 150, caps |
-| WeaponFire | C->S | `id: string, origin: Vector3, direction: Vector3` | 20 burst / 16 per s, then per-gun rpm; origin within 8 studs of head |
+| WeaponFire | C->S | `id: string, origin: Vector3, direction: Vector3` | 20 burst / 16 per s, then per-gun rpm; origin is compatibility only, the server uses its own head |
 | WeaponReload | C->S | `id: string` | 3 burst / 1 per s, gun equipped |
 | SetPvp | C->S | `on: boolean` | 2 burst / 1 per 5 s |
 | WeaponFx | S->C unreliable | `shooter, id, hit: Vector3` | other players' tracers |
@@ -81,7 +81,7 @@ scripts/check.sh                full gate
 | DupeState | S->C | `clipboard: string, slots: {string}` | panel labels |
 
 ## Maps
-One server holds every map at once, far apart: the Rojo baseplate at the origin, `Workspace.Maps.Construct` at X +6000, `Workspace.Maps.Flatgrass` at X -10000. The maps live in the place file (inserted from the Creator Store, stripped to geometry, clip walls and terrain water); spawn points and the Flatgrass collision floor live in `MapCatalog`. At boot `MapService` turns collision off on every map part drawn with a `SpecialMesh` (the converter's brush meshes keep a box-sized collision that buries the play area; real collision is the `solid_*` clips and `Poly` triangles). Their lighting/sky/water settings are in `ReplicatedStorage.MapLighting.<id>`, applied on the client by `MapLighting.luau` for the player's `Map` attribute, so two players on different maps each see their own sky.
+One server holds every map at once, far apart: the Rojo baseplate at the origin, `Workspace.Maps.Construct` at X +6000, `Workspace.Maps.Flatgrass` at X -10000. The maps live in the place file (inserted from the Creator Store, stripped to geometry, clip walls and terrain water); spawn points and the Flatgrass collision floor live in `MapCatalog`. At boot `MapService` turns collision off on every map part drawn with a `SpecialMesh` (the converter's brush meshes keep a box-sized collision that buries the play area; real collision is the `solid_*` clips and `Poly` triangles). Their lighting/sky/water settings are in `ReplicatedStorage.MapLighting.<id>`, applied on the client by `MapLighting.luau` for the player's `Map` attribute, so two players on different maps each see their own sky. Parts the converter marked `ForceField` and named `solid_*` are invisible collision hulls; `MapService` sets them transparent (they still collide) instead of turning them into opaque gray slabs. Each `MapCatalog` mirror point gets a generated 28x14 mirror panel on the nearest wall face (and on the opposite face of the same wall), tagged `Mirror`; `Mirror.luau` renders a reflected copy of the nearby room and the local character on its room-facing side.
 
 ## Spawn flow
 1. Client raycasts from screen centre, clamps point into spawn range, fires `SpawnProp(id, point)`.

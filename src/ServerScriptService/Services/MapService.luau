@@ -6,12 +6,24 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local BadAssets = require(ReplicatedStorage.Shared.BadAssets)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapCatalog = require(ReplicatedStorage.Shared.MapCatalog)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Validate = require(script.Parent.Validate)
 
 local SPREAD = 6 -- studs; players picking the same map don't stack
+local FACES = {
+	Enum.NormalId.Front,
+	Enum.NormalId.Back,
+	Enum.NormalId.Left,
+	Enum.NormalId.Right,
+	Enum.NormalId.Top,
+	Enum.NormalId.Bottom,
+}
+local MIRROR_FOLDER = "MirrorPanels"
+
+type FacePick = { part: BasePart, id: Enum.NormalId, normal: Vector3, point: Vector3, distance: number }
 
 local pickRemote = ReplicatedStorage.Remotes.PickMap :: RemoteEvent
 local limiter = RateLimiter.new(Config.MAP_BUCKET_CAPACITY, Config.MAP_REFILL_PER_SECOND)
@@ -53,21 +65,164 @@ local function addFloor(def: MapCatalog.MapDef, model: Instance)
 	end
 end
 
--- Tag the part nearest each mirror point so the client draws a reflection on it.
-local function tagMirrors(def: MapCatalog.MapDef, model: Instance)
+local OPPOSITE: { [Enum.NormalId]: Enum.NormalId } = {
+	[Enum.NormalId.Front] = Enum.NormalId.Back,
+	[Enum.NormalId.Back] = Enum.NormalId.Front,
+	[Enum.NormalId.Left] = Enum.NormalId.Right,
+	[Enum.NormalId.Right] = Enum.NormalId.Left,
+	[Enum.NormalId.Top] = Enum.NormalId.Bottom,
+	[Enum.NormalId.Bottom] = Enum.NormalId.Top,
+}
+
+-- The nearest face of any map part to a MapCatalog point. The old code tagged the nearest part by its centre,
+-- which picked a huge collision box buried inside the wall, so the mirror was never visible. Faces are compared
+-- by the distance from the point to the face plane, and the panel is built at the point projected onto that
+-- plane (not at the face centre, which can be many studs away on a 150-stud wall).
+local function nearestFace(model: Instance, target: Vector3): FacePick?
+	local best: FacePick? = nil
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Name ~= "Mirror" and part.Name ~= "MirrorFrame" then
+			local localTarget = part.CFrame:PointToObjectSpace(target)
+			for _, id in FACES do
+				local localNormal = Vector3.FromNormalId(id)
+				local extent = math.abs(localNormal.X) * part.Size.X
+					+ math.abs(localNormal.Y) * part.Size.Y
+					+ math.abs(localNormal.Z) * part.Size.Z
+				local normalCoord = localTarget:Dot(localNormal)
+				local distance = math.abs(normalCoord - extent / 2)
+				if distance > Config.MIRROR_SEARCH then
+					continue
+				end
+				-- The point must be over the face, not off the side of a small part.
+				local tangential = localTarget - localNormal * normalCoord
+				if
+					math.abs(tangential.X) > part.Size.X / 2 + 1
+					or math.abs(tangential.Y) > part.Size.Y / 2 + 1
+					or math.abs(tangential.Z) > part.Size.Z / 2 + 1
+				then
+					continue
+				end
+				if not best or distance < best.distance then
+					local projected = localTarget - localNormal * (normalCoord - extent / 2)
+					best = {
+						part = part,
+						id = id,
+						normal = part.CFrame:VectorToWorldSpace(localNormal),
+						point = part.CFrame:PointToWorldSpace(projected),
+						distance = distance,
+					}
+				end
+			end
+		end
+	end
+	return best
+end
+
+-- The face on the other side of the same wall, so a two-sided room gets a mirror whichever side you stand on.
+local function oppositeFace(pick: FacePick): FacePick?
+	local id = OPPOSITE[pick.id]
+	local localNormal = Vector3.FromNormalId(id)
+	local part = pick.part
+	local extent = math.abs(localNormal.X) * part.Size.X
+		+ math.abs(localNormal.Y) * part.Size.Y
+		+ math.abs(localNormal.Z) * part.Size.Z
+	if extent > Config.MIRROR_SEARCH then
+		return nil
+	end
+	return {
+		part = part,
+		id = id,
+		normal = part.CFrame:VectorToWorldSpace(localNormal),
+		point = pick.point - pick.normal * extent,
+		distance = extent,
+	}
+end
+
+local function hasPanel(folder: Instance, pick: FacePick): boolean
+	for _, child in folder:GetChildren() do
+		if
+			child:IsA("BasePart")
+			and child.Name == "Mirror"
+			and (child.Position - pick.point).Magnitude < Config.MIRROR_OFFSET + 0.25
+			and child.CFrame.LookVector:Dot(pick.normal) > 0.9
+		then
+			return true
+		end
+	end
+	return false
+end
+
+-- Build a real glass panel on the wall face instead of putting a SurfaceGui on whatever collision box
+-- happened to be nearest. The client puts the reflection on its Front face.
+local function buildMirror(model: Instance, pick: FacePick)
+	local existing = model:FindFirstChild(MIRROR_FOLDER)
+	local folder: Folder
+	if existing and existing:IsA("Folder") then
+		folder = existing
+	else
+		folder = Instance.new("Folder")
+		folder.Name = MIRROR_FOLDER
+		folder.Parent = model
+	end
+	if hasPanel(folder, pick) then
+		return
+	end
+	local up = if math.abs(pick.normal.Y) > 0.9 then pick.part.CFrame.LookVector else Vector3.yAxis
+	local position = pick.point + pick.normal * Config.MIRROR_OFFSET
+	local cf = CFrame.lookAt(position, position + pick.normal, up)
+
+	local mirror = Instance.new("Part")
+	mirror.Name = "Mirror"
+	mirror.Size = Vector3.new(Config.MIRROR_WIDTH, Config.MIRROR_HEIGHT, 0.12)
+	mirror.CFrame = cf
+	mirror.Anchored = true
+	mirror.CanCollide = false
+	mirror.CanQuery = false
+	mirror.CanTouch = false
+	mirror.CastShadow = false
+	mirror.Material = Enum.Material.SmoothPlastic
+	mirror.Color = Color3.fromRGB(24, 26, 30)
+	mirror.Reflectance = 0.05
+	mirror:SetAttribute(Config.MIRROR_FACE_ATTRIBUTE, "Front")
+	mirror.Parent = folder
+	CollectionService:AddTag(mirror, Config.MIRROR_TAG)
+
+	local frame = Instance.new("Part")
+	frame.Name = "MirrorFrame"
+	frame.Size =
+		Vector3.new(Config.MIRROR_WIDTH + Config.MIRROR_FRAME * 2, Config.MIRROR_HEIGHT + Config.MIRROR_FRAME * 2, 0.2)
+	frame.CFrame = cf * CFrame.new(0, 0, -0.12)
+	frame.Anchored = true
+	frame.CanCollide = false
+	frame.CanQuery = false
+	frame.CanTouch = false
+	frame.CastShadow = false
+	frame.Material = Enum.Material.Metal
+	frame.Color = Color3.fromRGB(12, 13, 15)
+	frame.Parent = folder
+end
+
+-- Anything pointing at a refused asset is cleared here too, so the map is clean for every client even
+-- before the client sweep runs.
+local function cleanBadAssets(maps: Instance)
+	for _, descendant in maps:GetDescendants() do
+		BadAssets.strip(descendant)
+	end
+end
+
+local function makeMirrors(def: MapCatalog.MapDef, model: Instance)
 	local points: { { number } } = def.mirrors or {}
 	for _, at in points do
 		local target = Vector3.new(at[1], at[2], at[3])
-		local best, bestDistance = nil, Config.MIRROR_SEARCH
-		for _, d in model:GetDescendants() do
-			if d:IsA("BasePart") and (d.Position - target).Magnitude < bestDistance then
-				best, bestDistance = d, (d.Position - target).Magnitude
+		local pick = nearestFace(model, target)
+		if pick then
+			buildMirror(model, pick)
+			local other = oppositeFace(pick)
+			if other then
+				buildMirror(model, other)
 			end
-		end
-		if best then
-			CollectionService:AddTag(best, Config.MIRROR_TAG)
 		else
-			warn(`MapService: no part near mirror point {target} on {def.id}`)
+			warn(`MapService: no wall face near mirror point {target} on {def.id}`)
 		end
 	end
 end
@@ -93,8 +248,30 @@ function MapService.init()
 				warn(`MapService: removed script {descendant:GetFullName()}`)
 				descendant:Destroy()
 			elseif descendant:IsA("BasePart") and descendant.Material == Enum.Material.ForceField then
-				-- ForceField draws almost black in Roblox; the converter painted most walls with it.
-				descendant.Material = Enum.Material.SmoothPlastic
+				-- The Source converter marks invisible collision hulls and some surfaces as ForceField.
+				-- solid_* hulls have no visible mesh: hide them (they still collide) instead of turning them
+				-- into opaque gray slabs that cover the real textured brushes. Other ForceField surfaces are
+				-- visible parts of the map and only need a neutral material.
+				local hasVisual = false
+				for _, child in descendant:GetChildren() do
+					if
+						child:IsA("SpecialMesh")
+						or child:IsA("Decal")
+						or child:IsA("Texture")
+						or child:IsA("SurfaceAppearance")
+						or child:IsA("SurfaceGui")
+					then
+						hasVisual = true
+						break
+					end
+				end
+				if string.sub(descendant.Name, 1, 6) == "solid_" and not hasVisual then
+					descendant.Transparency = 1
+					descendant.Reflectance = 0
+					descendant.CastShadow = false
+				else
+					descendant.Material = Enum.Material.SmoothPlastic
+				end
 			elseif descendant:IsA("SpecialMesh") and descendant.MeshType == Enum.MeshType.FileMesh then
 				-- The converted maps draw brushes as a box Part with a mesh inside. The mesh shows the shape, but
 				-- collision stays the whole box, and those boxes bury the play area (things fall straight through).
@@ -104,14 +281,29 @@ function MapService.init()
 					part.CanCollide = false
 					part.CanQuery = false
 					part.CanTouch = false
+					-- The converter left 124 metal ladders (the only visible FileMeshes with an empty TextureId) as
+					-- Carpet material with no texture. They render flat gray. Make them look like the metal they are.
+					if descendant.TextureId == "" then
+						part.Material = Enum.Material.Metal
+						part.Color = Color3.fromRGB(88, 92, 98)
+						part.Reflectance = 0.05
+					end
 				end
+			end
+		end
+		cleanBadAssets(maps)
+		-- Old servers tagged whatever part was nearest the mirror point, and a saved place can still carry that
+		-- tag on a 155-stud collision box. Only panels inside MirrorPanels are real mirrors.
+		for _, tagged in CollectionService:GetTagged(Config.MIRROR_TAG) do
+			if tagged:IsDescendantOf(maps) and (not tagged.Parent or tagged.Parent.Name ~= MIRROR_FOLDER) then
+				CollectionService:RemoveTag(tagged, Config.MIRROR_TAG)
 			end
 		end
 		for _, def in MapCatalog.list do
 			local model = def.model and maps:FindFirstChild(def.model)
 			if model then
 				addFloor(def, model)
-				tagMirrors(def, model)
+				makeMirrors(def, model)
 			end
 		end
 	end
