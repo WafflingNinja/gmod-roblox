@@ -1,0 +1,10 @@
+sourcemap.json
+roblox.yml
+*.rbxl
+*.rbxl.lock
+*.rbxlx
+*.rbxlx.lock
+*.blend1
+blender/exports/
+.env
+audio/exports/

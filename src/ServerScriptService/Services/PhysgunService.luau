@@ -1,0 +1,65 @@
+--!strict
+-- Physgun: grab, move, rotate and freeze own props. The hold itself (constraints, aim, release) is in Hold.luau.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Hold = require(script.Parent.Hold)
+local Ownership = require(script.Parent.Ownership)
+local RateLimiter = require(script.Parent.RateLimiter)
+local Sfx = require(script.Parent.Sfx)
+local Validate = require(script.Parent.Validate)
+
+local remotes = ReplicatedStorage.Remotes
+local grabRemote = remotes.PhysgunGrab :: RemoteEvent
+local releaseRemote = remotes.PhysgunRelease :: RemoteEvent
+local freezeRemote = remotes.PhysgunFreeze :: RemoteEvent
+
+local BEAM_COLOR = Color3.fromRGB(70, 225, 255)
+
+local grabLimiter = RateLimiter.new(Config.GRAB_BUCKET_CAPACITY, Config.GRAB_REFILL_PER_SECOND)
+
+local PhysgunService = {}
+
+function PhysgunService.init()
+	grabRemote.OnServerEvent:Connect(function(player: Player, prop: unknown)
+		if not grabLimiter:consume(player, 1) then
+			return
+		end
+		if typeof(prop) ~= "Instance" or not prop:IsA("BasePart") or Hold.get(player) then
+			return
+		end
+		if not Ownership.isOwner(player, prop) then
+			return
+		end
+		local tool = Validate.equippedTool(player, Config.PHYSGUN)
+		local root = Validate.aliveRoot(player)
+		if not tool or not root or (prop.Position - root.Position).Magnitude > Config.GRAB_RANGE then
+			return
+		end
+		Hold.start(player, prop, tool, BEAM_COLOR, Config.HOLD_MAX, "physgun_hold")
+		Sfx.play("physgun_grab", prop)
+	end)
+
+	releaseRemote.OnServerEvent:Connect(function(player: Player)
+		if grabLimiter:consume(player, 1) then
+			Hold.release(player)
+		end
+	end)
+
+	freezeRemote.OnServerEvent:Connect(function(player: Player)
+		local prop = Hold.get(player)
+		if not prop or not grabLimiter:consume(player, 1) then
+			return
+		end
+		if not Validate.equippedTool(player, Config.PHYSGUN) then
+			return
+		end
+		Hold.release(player)
+		prop.AssemblyLinearVelocity = Vector3.zero
+		prop.AssemblyAngularVelocity = Vector3.zero
+		prop.Anchored = true
+		Sfx.play("physgun_freeze", prop)
+	end)
+end
+
+return PhysgunService

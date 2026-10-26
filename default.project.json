@@ -1,0 +1,146 @@
+{
+  "name": "Sandbox",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Size": [
+            2048,
+            4,
+            2048
+          ],
+          "CFrame": [
+            0,
+            -2,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "Color": [
+            0.35,
+            0.4,
+            0.35
+          ],
+          "Material": "Concrete"
+        }
+      },
+      "SpawnPad": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Neutral": true,
+          "Duration": 0,
+          "Size": [
+            12,
+            1,
+            12
+          ],
+          "CFrame": [
+            0,
+            0.5,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "Props": {
+        "$className": "Folder"
+      },
+      "PhysgunTargets": {
+        "$className": "Folder"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/ServerScriptService",
+      "$ignoreUnknownInstances": true
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "Shared": {
+        "$path": "src/ReplicatedStorage/Shared"
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "SpawnProp": {
+          "$className": "RemoteEvent"
+        },
+        "RemoveProp": {
+          "$className": "RemoteEvent"
+        },
+        "ClearMine": {
+          "$className": "RemoteEvent"
+        },
+        "Notify": {
+          "$className": "RemoteEvent"
+        },
+        "PhysgunGrab": {
+          "$className": "RemoteEvent"
+        },
+        "PhysgunRelease": {
+          "$className": "RemoteEvent"
+        },
+        "PhysgunFreeze": {
+          "$className": "RemoteEvent"
+        },
+        "ToolgunUse": {
+          "$className": "RemoteEvent"
+        },
+        "ThrustersHeld": {
+          "$className": "RemoteEvent"
+        },
+        "ToolSelect": {
+          "$className": "RemoteEvent"
+        },
+        "PhysgunAim": {
+          "$className": "UnreliableRemoteEvent"
+        },
+        "GravityPull": {
+          "$className": "RemoteEvent"
+        },
+        "GravityPunt": {
+          "$className": "RemoteEvent"
+        },
+        "RagdollToggle": {
+          "$className": "RemoteEvent"
+        },
+        "RagdollState": {
+          "$className": "RemoteEvent"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+      "$properties": {
+        "CameraMode": "LockFirstPerson"
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/StarterPlayerScripts",
+        "$ignoreUnknownInstances": true
+      }
+    }
+  }
+}
