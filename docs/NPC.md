@@ -10,6 +10,18 @@ Spawnable ragdoll-capable NPCs that feel alive without hurting server performanc
 | Hostile | Chases nearest player in range, melee/shoot, gives up on distance |
 | Dummy | Stands, ragdolls on hit |
 
+## Roster
+| NPC | Type | Look |
+|---|---|---|
+| Guest | Friendly | Classic Guest: default body colors, black cap built from parts |
+| Noob | Friendly | Yellow head and arms, blue torso, green legs (R6 body colors) |
+| John Doe | Hostile | Classic test-account look, from a reference screenshot |
+
+Jane Doe is cut (no voice for her). Looks are rebuilt in code; no Catalog or ripped assets.
+
+## Voice
+Lines are recorded first (`docs/VOICE.md`, `audio/voice/lines.json`). Each line has a category the NPC code triggers on: `spawn`, `idle`, `greet`, `follow`, `stay`, `grabbed`, `thrown`, `hurt`, `death`, `flee`, and for John Doe `spot`, `chase`, `lost`, `kill`. `Services/NpcVoice.luau` picks a random line from the category (never the same one twice in a row), at most one every 4 s per NPC plus a server-wide cap on voices at once, plays it from the head with `PlaybackRegion` on the NPC's sprite, and shows the text as a chat bubble.
+
 ## Architecture
 - `Shared/BehaviorTree.luau`: Blackboard + sequence/selector/parallel + decorators. Pure logic, lune-tested.
 - `Services/NpcService.luau`: spawn, tick, cleanup. One Heartbeat connection ticks all NPCs round-robin, not one loop per NPC.

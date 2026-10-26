@@ -27,6 +27,9 @@ All SFX are synthesized from scratch by `audio/sfx.py` (oscillators + noise, no 
 
 Pipeline: `python3 audio/sfx.py` -> `audio/exports/*.ogg` (gitignored) -> upload (Studio: Window > Asset Manager > Bulk Import, or Creator Hub > Audio) -> paste `rbxassetid://<id>` into `Shared/Sounds.luau`. Until then the id is `""` and the sound simply doesn't play. `tests/sounds.spec.luau` checks every name the code plays exists and every not-uploaded sound has a generator.
 
+## Voice lines
+NPC voices are recorded by the developer (original, own voice) with `audio/voice/recorder.py`; see `docs/VOICE.md`. Raw takes are committed in `audio/voice/takes/`; exports are gitignored. One sprite per NPC is uploaded, lines are played with `PlaybackRegion`.
+
 ## License log
 | Pack | Author | License | URL | Used for |
 |---|---|---|---|---|
