@@ -23,24 +23,35 @@ Jane Doe is cut. You're not doing a woman's voice, and there's no need to fake o
 - [ ] **Screams last of all.** Leave `thrown` lines (Wheeee!, Aaaah!) until the end so you don't wreck your voice early.
 - [ ] **Re-listen (15 min).** Click through every line with P and redo anything that's clipped, mumbled or not funny.
 - [ ] **Finish.** Press the green **Finish** button. It exports everything.
-- [ ] **Back up.** Commit and push `audio/voice/takes/` and `audio/voice/lines.json`. The takes are the one thing you can't make again once people are home.
+- [ ] **Back up.** Commit and push `audio/voice/takes/` and `audio/voice/lines.json` (GitHub Desktop: tick them, Commit, Push origin). The takes are the one thing you can't make again once people are home.
 - [ ] If there's time: upload the 3 sprite files (see "After recording").
 
 About two hours with breaks. All 66 lines, or the core ones (`spawn`, `idle`, `hurt`, `death`, plus John Doe's `spot` and `chase`), gives the NPCs enough to work with.
 
 ## Setup
 
-You need Python 3 with tkinter, numpy and sounddevice, plus ffmpeg (which `audio/sfx.py` already uses).
+### Windows (double-click)
+
+1. **Python**: install it from https://www.python.org/downloads/. On the first installer screen, tick **"Add python.exe to PATH"**. Tkinter comes with it.
+2. **The repo**: get this branch onto the PC. With GitHub Desktop, clone `WafflingNinja/gmod-roblox` and switch to the branch `claude/game-voice-acting-plan-199apw`. With git:
+   ```
+   git clone https://github.com/WafflingNinja/gmod-roblox
+   cd gmod-roblox
+   git checkout claude/game-voice-acting-plan-199apw
+   ```
+3. **Microphone permission**: Settings > Privacy & security > Microphone. Turn on **Microphone access** and **Let desktop apps access your microphone**. If this is off, every take comes out silent.
+4. **Run it**: double-click `audio\voice\record.bat`. The first time, it installs numpy, sounddevice and ffmpeg into a `.venv` folder (about a minute, needs internet). After that it opens straight away. A black console window stays open behind the recorder. Leave it open, because closing it closes the recorder.
+
+In the recorder, pick your mic in the **Mic** list. If your headset and your webcam both have mics, choose the headset. If the mic you want isn't listed, plug it in before starting the recorder.
+
+### Linux
 
 ```
-# Debian/Ubuntu/Mint
-sudo apt install python3-tk libportaudio2 ffmpeg
-# Fedora:  sudo dnf install python3-tkinter portaudio ffmpeg
-# Arch:    sudo pacman -S tk portaudio ffmpeg
-
+# Debian/Ubuntu/Mint (Fedora: dnf install python3-tkinter portaudio, Arch: pacman -S tk portaudio)
+sudo apt install python3-tk libportaudio2
 cd ~/gmod-roblox
-python3 -m venv --system-site-packages .venv
-.venv/bin/pip install numpy sounddevice
+python3 -m venv .venv
+.venv/bin/pip install numpy sounddevice imageio-ffmpeg
 .venv/bin/python audio/voice/recorder.py
 ```
 

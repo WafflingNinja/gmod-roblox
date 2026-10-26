@@ -3,7 +3,8 @@
 Lists every line in lines.json, records your mic per line, lets you edit the text, and the Finish
 button exports cleaned-up .ogg files for Roblox plus the VoiceLines.luau timing table.
 
-Run: python3 audio/voice/recorder.py      (needs numpy, sounddevice, tkinter and ffmpeg)
+Windows: double-click record.bat (installs everything into .venv on the first run).
+Linux/Mac: python3 audio/voice/recorder.py   (needs numpy, sounddevice, tkinter, and ffmpeg or imageio-ffmpeg)
 
 Keys: Space record/stop, P play, Up/Down change line, T test mic, Esc leave a text box.
 A take is saved to takes/<id>.wav the moment you stop, so closing the window never loses audio.
@@ -30,12 +31,18 @@ try:
 except (ImportError, OSError) as err:
     sys.exit(f"sounddevice is missing or PortAudio is not installed ({err}). See docs/VOICE.md, Setup.")
 
+try:
+    import imageio_ffmpeg  # pip-installed ffmpeg, so Windows needs nothing on PATH
+except ImportError:
+    imageio_ffmpeg = None
+
 HERE = Path(__file__).resolve().parent
 LINES = HERE / "lines.json"
 TAKES = HERE / "takes"
 OUT = HERE / "exports"
 SHARED = HERE.parents[1] / "src" / "ReplicatedStorage" / "Shared" / "VoiceLines.luau"
 
+FFMPEG = shutil.which("ffmpeg") or (imageio_ffmpeg.get_ffmpeg_exe() if imageio_ffmpeg else None)
 RATE = 48000  # export rate; takes keep whatever the mic gave
 TEST_SECONDS = 3
 GAP = 0.5  # silence between lines inside a sprite, so a PlaybackRegion never bleeds into the next line
@@ -106,7 +113,7 @@ def pitch_shift(audio, semitones):
         return audio
     factor = 2 ** (semitones / 12)
     result = subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-f", "f32le", "-ar", str(RATE), "-ac", "1", "-i", "-",
+        [FFMPEG, "-loglevel", "error", "-f", "f32le", "-ar", str(RATE), "-ac", "1", "-i", "-",
          "-af", f"asetrate={RATE * factor:.0f},aresample={RATE},atempo={1 / factor:.6f}",
          "-f", "f32le", "-ar", str(RATE), "-ac", "1", "-"],
         input=audio.astype("<f4").tobytes(),
@@ -119,12 +126,23 @@ def pitch_shift(audio, semitones):
 def write_ogg(path, audio):
     pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2")
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", str(RATE), "-ac", "1", "-i", "-",
+        [FFMPEG, "-y", "-loglevel", "error", "-f", "s16le", "-ar", str(RATE), "-ac", "1", "-i", "-",
          "-c:a", "libvorbis", "-q:a", "6", str(path)],
         input=pcm.tobytes(),
         check=True,
     )
     return pcm
+
+
+def input_devices():
+    """(index, name) of every mic, using only the default mic's host API so Windows doesn't list each mic 4 times."""
+    devices = list(enumerate(sd.query_devices()))
+    mics = [(i, d) for i, d in devices if d["max_input_channels"] > 0]
+    default = sd.default.device[0]
+    if 0 <= default < len(devices):
+        same_api = [(i, d) for i, d in mics if d["hostapi"] == devices[default][1]["hostapi"]]
+        mics = same_api or mics
+    return [(i, d["name"]) for i, d in mics]
 
 
 def take_path(line_id):
@@ -305,29 +323,33 @@ class App:
         self.save_job = None
         TAKES.mkdir(exist_ok=True)
 
+        self.scale = max(1.0, root.winfo_fpixels("1i") / 96)  # Windows display scaling (125%, 150%...)
         root.title("waffles mod - voice recorder")
-        root.geometry("1100x680")
-        root.minsize(900, 560)
+        width = min(self.px(1100), root.winfo_screenwidth() - 40)
+        height = min(self.px(680), root.winfo_screenheight() - 100)  # room for the taskbar
+        root.geometry(f"{width}x{height}")
+        root.minsize(min(self.px(900), width), min(self.px(560), height))
         self.build()
         self.fill_tree()
         self.pick_device()
         self.tick()
         root.protocol("WM_DELETE_WINDOW", self.close)
 
+    def px(self, n):
+        return int(n * self.scale)
+
     # layout
     def build(self):
         bar = ttk.Frame(self.root, padding=8)
         bar.pack(fill="x")
         ttk.Label(bar, text="Mic:").pack(side="left")
-        self.devices = [
-            (i, d["name"]) for i, d in enumerate(sd.query_devices()) if d["max_input_channels"] > 0
-        ]
+        self.devices = input_devices()
         self.device_box = ttk.Combobox(bar, state="readonly", width=42, values=[f"{i}: {n}" for i, n in self.devices])
         self.device_box.pack(side="left", padx=6)
         self.device_box.bind("<<ComboboxSelected>>", lambda _e: self.open_device())
         self.test_btn = ttk.Button(bar, text="Test mic (T)", command=self.test_mic)
         self.test_btn.pack(side="left", padx=6)
-        self.meter = tk.Canvas(bar, width=260, height=18, bg="#222", highlightthickness=0)
+        self.meter = tk.Canvas(bar, width=self.px(260), height=self.px(18), bg="#222", highlightthickness=0)
         self.meter.pack(side="left", padx=6)
         self.meter_label = ttk.Label(bar, width=22)
         self.meter_label.pack(side="left")
@@ -358,7 +380,7 @@ class App:
 
         right = ttk.Frame(body, padding=(12, 0, 0, 0))
         body.add(right, weight=2)
-        self.voice = ttk.Label(right, wraplength=380, foreground="#555")
+        self.voice = ttk.Label(right, wraplength=self.px(380), foreground="#555")
         self.voice.pack(fill="x", pady=(0, 8))
         self.title = ttk.Label(right, font=("TkDefaultFont", 11, "bold"))
         self.title.pack(anchor="w")
@@ -393,10 +415,10 @@ class App:
         edit.pack(fill="x", pady=12)
         ttk.Button(edit, text="+ Add line", command=self.add_line).pack(side="left")
         ttk.Button(edit, text="Delete line", command=self.delete_line).pack(side="left", padx=6)
-        self.status = ttk.Label(right, wraplength=380)
+        self.status = ttk.Label(right, wraplength=self.px(380))
         self.status.pack(fill="x", pady=8)
 
-        self.root.after(100, lambda: body.sashpos(0, 600))
+        self.root.after(100, lambda: body.sashpos(0, self.px(600)))
 
         bottom = ttk.Frame(self.root, padding=8)
         bottom.pack(fill="x")
@@ -545,10 +567,10 @@ class App:
         """Level meter, 20 times a second."""
         peak = self.mic.read_peak()
         level = db(peak)
-        width = max(0, min(1, (level + 60) / 60)) * 260
+        width = max(0, min(1, (level + 60) / 60)) * self.px(260)
         color = "#e33" if level > -1 else "#eb3" if level > -9 else "#3c5"
         self.meter.delete("all")
-        self.meter.create_rectangle(0, 0, width, 18, fill=color, width=0)
+        self.meter.create_rectangle(0, 0, width, self.px(18), fill=color, width=0)
         hint = "TOO LOUD, back off" if level > -1 else "too quiet" if level < -40 and self.mic.busy else ""
         self.meter_label.config(text=f"{level:5.0f} dB  {hint}")
         self.root.after(50, self.tick)
@@ -609,7 +631,9 @@ class App:
         peak = db(float(np.max(np.abs(audio))))
         floor = db(float(np.percentile(np.abs(audio), 10)))
         verdict = (
-            "Too loud, it clips. Turn the mic gain down or move back." if peak > -1
+            "Total silence. Wrong mic, or on Windows: Settings > Privacy > Microphone > let desktop apps use it."
+            if peak < -90
+            else "Too loud, it clips. Turn the mic gain down or move back." if peak > -1
             else "Too quiet. Turn the gain up or get closer." if peak < -25
             else "Noisy room, the background is loud." if floor > -45
             else "Sounds good."
@@ -620,8 +644,8 @@ class App:
     def finish(self):
         if self.rec_id:
             self.stop_record()
-        if shutil.which("ffmpeg") is None:
-            messagebox.showerror("ffmpeg missing", "Install ffmpeg first (see docs/VOICE.md). Your takes are safe in takes/.")
+        if FFMPEG is None:
+            messagebox.showerror("ffmpeg missing", "pip install imageio-ffmpeg (see docs/VOICE.md). Your takes are safe in takes/.")
             return
         self.save()
         self.finish_btn.config(state="disabled")
@@ -660,6 +684,13 @@ class App:
 
 
 if __name__ == "__main__":
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except (AttributeError, OSError):
+            pass
     root = tk.Tk()
     App(root)
     root.mainloop()
