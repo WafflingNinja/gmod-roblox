@@ -17,7 +17,7 @@
     },
     "rostik": {
       "name": "RostikPro12308",
-      "voice": "You! Secret NPC, unlocked with the Konami code in the main menu. Your real voice, a hyped, proud game dev who can't believe someone found him.",
+      "voice": "You, as yourself. PLACEHOLDER lines: before recording, ask the AI in your terminal to rewrite them in your own style (docs/VOICE.md, 'Make RostikPro12308 sound like you'). Unlocked with the Konami code.",
       "pitch": 0
     }
   },

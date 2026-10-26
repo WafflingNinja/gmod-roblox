@@ -18,12 +18,13 @@ The Citizen is *inspired by* the HL2 citizens, nothing more. Hard rule 1 (`CLAUD
 ## The plan for tomorrow
 
 - [ ] **Setup (15 min).** Install the recorder (below), open it, pick your mic, press **Test mic**. Aim for a peak around -12 to -6 dB with no red bar.
+- [ ] **Make your lines sound like you (10 min).** Close the recorder, open Claude Code in the repo and say *"make my RostikPro12308 lines sound like me"*. It reads your old chats, learns how you talk, and rewrites your 23 lines (see "Make RostikPro12308 sound like you" below). Check them, then reopen the recorder.
 - [ ] **Read through (10 min).** Go down the list and say each line once out loud without recording. Change any line you don't like right in the text box. It saves by itself.
 - [ ] **Noob first (20 min).** He's the easiest voice, so he's your warm-up. 21 lines.
 - [ ] **Break.** Water, not soda or milk.
 - [ ] **Guest (25 min).** 24 lines.
 - [ ] **Citizen (20 min).** 21 lines, close to your normal voice.
-- [ ] **RostikPro12308 last (20 min).** 23 lines. You're just being you, so it's the easiest one to do tired. Sound hyped.
+- [ ] **RostikPro12308 last (20 min).** 23 lines. You're just being you, so it's the easiest one to do tired.
 - [ ] **Screams last of all.** Leave `thrown` lines (Wheeee!, Aaaah!) until the end so you don't wreck your voice early.
 - [ ] **Re-listen (15 min).** Click through every line with P and redo anything that's clipped, mumbled or not funny.
 - [ ] **Finish.** Press the green **Finish** button. It exports everything.
@@ -75,6 +76,35 @@ Tips:
 - A small room with clothes or a bed in it has less echo than a kitchen. Turn off fans. Phone on silent.
 - Do 2-3 takes of a line you care about. Only the last one is kept, so stop on the one you like.
 - Say lines a bit over the top. Game voices sound flat when you play them normally.
+
+## Make RostikPro12308 sound like you
+
+The RostikPro12308 lines in `lines.json` are placeholders, written without knowing how you talk. Before you record them, ask the AI in your terminal to fix them: open Claude Code in the repo and say *"make my RostikPro12308 lines sound like me"*. Close the recorder first. It saves its own copy of `lines.json` when it closes, and that would overwrite the AI's changes.
+
+**Steps for the AI:**
+
+1. **Learn how he talks.** Read what Rostik has typed before, from these sources in this order:
+   - Claude Code transcripts on this PC: `~/.claude/projects/*/*.jsonl` (on Windows `%USERPROFILE%\.claude\projects\`). Each line is one JSON event. Use only `"type": "user"` events with text he typed himself. Skip tool results, `<system-reminder>`, `<command-...>`, pasted blocks and anything the harness wrote. Start with this repo's project folder, then the others.
+   - A claude.ai export, if he gives you one (claude.ai Settings > Privacy > Export data, then `conversations.json`, messages with sender `human`).
+   - Anything else he points you to. Ask before opening any other folder or file.
+2. **Write a short style profile** (in the chat only, never in the repo). Cover:
+   - Sentence length; caps vs lowercase; how he uses "...", "Nooo", "!!".
+   - Slang and filler ("n stuff", "like"); how he jokes; what he gets hyped or annoyed about.
+   - English vs Czech.
+   
+   Show him the profile and 3 sample lines, and ask "does this sound like you?". Adjust until he says yes.
+3. **Rewrite every `rostik` line** in `audio/voice/lines.json`:
+   - Keep each `id`, `npc` and `category`, and the number of lines per category (the NPC code and the table above depend on them).
+   - Rewrite `text` and `note`, and update the `voice` direction for `rostik`.
+   - Write lines the way he would *say* them out loud, not how he types (no typos, no "u" for "you").
+   - English, unless he asks for Czech.
+   - Each line under about 4 seconds.
+4. **Follow the rules** in "Rules for lines" below. On top of those:
+   - No real name, school, city, age, family, friends, or anything private, even if it shows up in the chats.
+   - Don't quote chat messages word for word. Match the style, not the content.
+   - Never copy transcripts, excerpts or the profile into the repo or a commit.
+5. **Show him the new lines as a table** (category, line, how to say it). Apply his edits. Then write `lines.json` with one line per entry, the same format `recorder.py` writes (`dump_lines`). Check that the ids are unique and the counts didn't change.
+6. Tell him to reopen the recorder. He can still tweak any line there while recording.
 
 ## Rules for lines
 

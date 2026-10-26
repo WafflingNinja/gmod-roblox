@@ -26,4 +26,6 @@ See `docs/ARCHITECTURE.md`. New server logic goes in `src/ServerScriptService/Se
 
 ## Workflow
 
+When the user asks to make the RostikPro12308 voice lines sound like them, follow `docs/VOICE.md` > "Make RostikPro12308 sound like you".
+
 Follow `ROADMAP.md` in order. When a step's done-criteria pass, tick it there. Update the matching `docs/` file in the same change as the code. Test networked changes with 2 clients, not Play Solo.

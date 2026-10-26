@@ -675,9 +675,9 @@ class App:
     def close(self):
         if self.rec_id:
             self.stop_record()
-        if self.save_job:
+        if self.save_job:  # only an unsaved edit gets written, so closing never undoes outside changes to lines.json
             self.root.after_cancel(self.save_job)
-        self.save()
+            self.save()
         sd.stop()
         self.mic.close()
         self.root.destroy()
