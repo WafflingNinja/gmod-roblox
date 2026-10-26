@@ -125,7 +125,7 @@ Only if the user provides an Open Cloud API key with `asset:write`: `tools/uploa
 
 ## 6. NPC AI (ROADMAP step 6, spec in `docs/NPC.md`)
 - Voice first: the user records the lines with `audio/voice/recorder.py` (`docs/VOICE.md`). Then move `audio/voice/exports/VoiceLines.luau` to `Shared/`, stylua it, lune-spec it, and build `Services/NpcVoice.luau`.
-- Roster: Guest and Noob (Friendly), John Doe (Hostile). No Jane Doe.
+- Roster: Guest, Noob and John Doe, all Friendly (John Doe is a normal NPC, not the myth). No Jane Doe.
 - `Shared/BehaviorTree.luau`: blackboard, sequence/selector/parallel, inverter/cooldown/repeat decorators, lune-tested with a fake clock.
 - `NpcService.luau`: one Heartbeat tick for all NPCs, round-robin thinking at 4-10 Hz, sleep when no player within 150 studs; pathfinding with path cache and re-path throttle; ragdoll reuse from 3.4.
 - Types: Dummy, Friendly (wander, follow owner on command, flee), Hostile (chase, melee or gun, give up); NPC spawn tab; budget 10 per player, 40 per server, each costs 5 prop slots.

@@ -8,7 +8,7 @@ Cast, all voiced by you:
 |---|---|---|
 | **Guest** | Classic Guest: default body, black cap | Excited little kid, fast, a bit lost, thinks it's still 2016. Higher than your normal voice. |
 | **Noob** | Yellow head and arms, blue torso, green legs | Slow, dopey, sure he's a pro. Goofy smile in the voice. |
-| **John Doe** | The old Roblox test account | Low, slow, calm, close to the mic, nearly whispering. Never shouts. |
+| **John Doe** | The old Roblox default guy | Regular friendly guy, close to your normal voice. Relaxed and polite, a bit plain on purpose. |
 
 Jane Doe is cut. You're not doing a woman's voice, and there's no need to fake one.
 
@@ -19,14 +19,14 @@ Jane Doe is cut. You're not doing a woman's voice, and there's no need to fake o
 - [ ] **Noob first (20 min).** He's the easiest voice, so he's your warm-up. 21 lines.
 - [ ] **Break.** Water, not soda or milk.
 - [ ] **Guest (25 min).** 24 lines.
-- [ ] **John Doe last (20 min).** 21 lines. The quiet voice works best when you're a bit tired.
+- [ ] **John Doe last (20 min).** 21 lines. He's closest to your normal voice, so he's easy to do when you're tired.
 - [ ] **Screams last of all.** Leave `thrown` lines (Wheeee!, Aaaah!) until the end so you don't wreck your voice early.
 - [ ] **Re-listen (15 min).** Click through every line with P and redo anything that's clipped, mumbled or not funny.
 - [ ] **Finish.** Press the green **Finish** button. It exports everything.
 - [ ] **Back up.** Commit and push `audio/voice/takes/` and `audio/voice/lines.json` (GitHub Desktop: tick them, Commit, Push origin). The takes are the one thing you can't make again once people are home.
 - [ ] If there's time: upload the 3 sprite files (see "After recording").
 
-About two hours with breaks. All 66 lines, or the core ones (`spawn`, `idle`, `hurt`, `death`, plus John Doe's `spot` and `chase`), gives the NPCs enough to work with.
+About two hours with breaks. All 66 lines, or the core ones (`spawn`, `idle`, `hurt`, `death`), gives the NPCs enough to work with.
 
 ## Setup
 
@@ -87,16 +87,14 @@ All lines are in `audio/voice/lines.json`, and the recorder is the easiest way t
 | Category | When | Guest | Noob | John Doe |
 |---|---|---|---|---|
 | `spawn` | just spawned | 2 | 2 | 2 |
-| `idle` | random, every 15-40 s | 5 | 5 | 3 |
-| `greet` | a player walks up | 3 | 2 | |
-| `follow` / `stay` | told to follow / wait | 2 / 1 | 2 / 1 | |
+| `idle` | random, every 15-40 s | 5 | 5 | 5 |
+| `greet` | a player walks up | 3 | 2 | 2 |
+| `follow` / `stay` | told to follow / wait | 2 / 1 | 2 / 1 | 2 / 1 |
 | `grabbed` | picked up with the physgun or gravity gun | 2 | 2 | 2 |
-| `thrown` | let go fast / punted | 2 | 2 | 1 |
+| `thrown` | let go fast / punted | 2 | 2 | 2 |
 | `hurt` | takes damage | 3 | 2 | 2 |
 | `death` | dies | 2 | 2 | 2 |
-| `flee` | danger nearby | 2 | 1 | |
-| `spot` / `chase` / `lost` | sees a player / chasing / gave up | | | 2 / 3 / 2 |
-| `kill` | killed a player | | | 2 |
+| `flee` | danger nearby | 2 | 1 | 1 |
 | **total** | | **24** | **21** | **21** |
 
 Adding lines is fine: more lines in a category means less repetition. A new category only does something once the NPC code uses it, so either stick to these or tell Claude about it on NPC day.
@@ -108,7 +106,7 @@ Finish writes `audio/voice/exports/` (gitignored, you can always remake it from 
 - `guest.ogg`, `noob.ogg`, `johndoe.ogg`: **sprites**, all of one NPC's lines in a single file with half a second of silence between them. **These are the only files to upload.** That's 3 uploads instead of 66, and Roblox limits how many audio files you can upload a month.
 - `VoiceLines.luau`: where each line starts and how long it is inside its sprite, plus the text (for subtitles). The game plays a line with `Sound.PlaybackRegion`.
 
-`lines.json` has a `pitch` setting per NPC, in semitones (0 = your real voice). If John Doe isn't deep enough, try `-2`. For the Guest, try `+2`. Then press Finish again, because pitch only changes the export and never your takes.
+`lines.json` has a `pitch` setting per NPC, in semitones (0 = your real voice). If the Guest doesn't sound young enough, try `+2`. For a lower John Doe, try `-1`. Then press Finish again, because pitch only changes the export and never your takes.
 
 Uploading (needs your Roblox account, so you do it): Creator Hub > Creations > Audio > Upload, or Studio > Asset Manager > Bulk Import. Upload the 3 sprites, wait for moderation, copy each id and paste it into `VoiceLines.luau` as `id = "rbxassetid://..."`. If you re-record and press Finish, the id only stays when that NPC's audio didn't change. When it did, Finish tells you which sprite to upload again.
 
@@ -116,8 +114,8 @@ Uploading (needs your Roblox account, so you do it): Creator Hub > Creations > A
 
 1. Move `audio/voice/exports/VoiceLines.luau` to `src/ReplicatedStorage/Shared/`, run `stylua` on it, and add a lune spec (every line has a sprite, `start >= 0`, `length > 0`, no overlaps).
 2. `Shared/BehaviorTree.luau` and `Services/NpcService.luau` as in `docs/NPC.md` and `TO-DO.md` section 6.
-3. Rigs: R6 with body colors set in code (no Catalog items needed for Noob or Guest). Guest cap built from parts. John Doe matched to his classic look from a reference screenshot. All original, nothing ripped.
-4. Behaviors: Guest and Noob are **Friendly** (wander, greet, follow or stay on command, flee danger, ragdoll when grabbed or thrown). John Doe is **Hostile** (wander, spot, chase, melee, give up, taunt on kill).
+3. Rigs: R6 with body colors set in code (no Catalog items needed for Noob or Guest). Guest cap built from parts. John Doe matched to his classic default look from a reference screenshot. All original, nothing ripped.
+4. Behaviors: all three are **Friendly**: wander, greet, follow or stay on command, flee danger, ragdoll when grabbed or thrown. John Doe is a normal NPC, not the March 18 myth.
 5. `Services/NpcVoice.luau`: the server picks a line from the category for the event, never the same line twice in a row, at most one line every 4 s per NPC plus a server-wide cap on voices at once. It plays from the NPC's head with `PlaybackRegion`, and shows the text as a chat bubble (`TextChatService:DisplayBubble`) so the lines still work with sound off.
 6. NPC tab in the spawn menu. Spawning goes through `Ownership.luau` (5 prop slots each, cap 10 per player, 40 per server).
 
