@@ -8,5 +8,8 @@ roblox.yml
 blender/exports/
 .env
 audio/exports/
+audio/voice/exports/
+__pycache__/
+.venv/
 
 !waffles-mod.rbxl

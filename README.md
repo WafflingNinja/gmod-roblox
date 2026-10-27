@@ -49,5 +49,6 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 | [docs/TOOLS.md](docs/TOOLS.md) | Physgun, gravity gun, toolgun specs |
 | [docs/DUPES.md](docs/DUPES.md) | Save/load builds |
 | [docs/NPC.md](docs/NPC.md) | NPC AI design |
+| [docs/VOICE.md](docs/VOICE.md) | NPC voice acting: lines, recorder, upload |
 | [docs/TESTING.md](docs/TESTING.md) | Automated + manual test matrix |
 | [docs/LAUNCH.md](docs/LAUNCH.md) | Publish checklist, feedback button |

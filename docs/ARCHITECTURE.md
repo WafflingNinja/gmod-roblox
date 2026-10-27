@@ -42,6 +42,8 @@ src/
     MapLighting.luau            per-client sky/lighting/water for the player's map
     Sfx.luau                    local UI sounds
 audio/sfx.py                    synthesizes the SFX -> audio/exports/*.ogg
+audio/voice/recorder.py         NPC voice recorder GUI: lines.json -> takes/*.wav -> exports/<npc>.ogg sprites + VoiceLines.luau (docs/VOICE.md)
+audio/voice/record.bat          Windows double-click launcher: sets up .venv on first run, then opens the recorder
     UI/SpawnMenu.luau           Q menu, HUD, toast, X remove
     UI/ToolHud.luau, Ui.luau    crosshair, toolgun panel, selection outline, shared theme
     UI/WeaponSelect.luau        HL2-style weapon selector (replaces the hotbar)
