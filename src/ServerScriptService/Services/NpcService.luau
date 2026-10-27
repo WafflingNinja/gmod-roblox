@@ -314,7 +314,7 @@ local function fight(npc: Npc, now: number): boolean
 	face(npc, targetRoot.Position)
 	if now >= npc.nextShot then
 		npc.nextShot = now + 60 / gun.rpm * FIRE_SLOWDOWN
-		WeaponService.npcFire(npc.model, gun, head, targetRoot.Position + Vector3.yAxis * 1.5)
+		WeaponService.npcFire(npc.model, gun, head, target)
 	end
 	return true
 end
@@ -502,7 +502,11 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 		if health < npc.health and health > 0 then
 			say(npc, "hurt")
 			if npc.gun then
-				npc.angryAt = nearestPlayer(root.Position, ANGRY_RANGE)
+				-- Shoot back at whoever shot us (WeaponService tags it); otherwise at whoever is nearest.
+				local attackerId = model:GetAttribute(Config.NPC_ATTACKER_ATTRIBUTE)
+				model:SetAttribute(Config.NPC_ATTACKER_ATTRIBUTE, nil)
+				local attacker = if typeof(attackerId) == "number" then Players:GetPlayerByUserId(attackerId) else nil
+				npc.angryAt = attacker or nearestPlayer(root.Position, ANGRY_RANGE)
 				npc.angryUntil = os.clock() + ANGRY_SECONDS
 				npc.health = health
 				return

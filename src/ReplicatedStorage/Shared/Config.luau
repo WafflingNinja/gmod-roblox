@@ -1,6 +1,6 @@
 --!strict
 return table.freeze({
-	BUILD = "v16 (third person anywhere, gun poses)", -- shown in the HUD; bump on every change so a stale Studio is obvious
+	BUILD = "v17 (gas cans, armed citizen hits, rpg fix)", -- shown in the HUD; bump on every change so a stale Studio is obvious
 	PROP_CAP = 150,
 	SPAWN_RANGE = 150, -- studs, character to requested spawn point
 	SPAWN_BUCKET_CAPACITY = 5,
@@ -117,6 +117,7 @@ return table.freeze({
 	NPC_HEAR_RANGE = 90, -- studs; voice and subtitles past this are skipped
 	NPC_PROMPT_BUCKET_CAPACITY = 3,
 	NPC_PROMPT_REFILL_PER_SECOND = 1,
+	NPC_ATTACKER_ATTRIBUTE = "LastAttacker", -- on an NPC Model: UserId of the player who last shot it
 	SECRET_ATTRIBUTE = "SecretUnlocked", -- on Player: Konami code found, RostikPro12308 spawnable
 	FLASHLIGHT_NAME = "Flashlight", -- SpotLight on the Head
 	FLASHLIGHT_BUCKET_CAPACITY = 4,

@@ -50,6 +50,7 @@ The game is public from day one. Assume executors.
 | WeaponFire | unknown gun, gun not equipped, NaN/non-unit direction, faster than rpm, empty magazine, during reload | rejected; the claimed camera origin is ignored (the server raycasts from its own head), spread, hit and damage are server-side |
 | WeaponFire | hit another player | damage only if both have PvP on; props only pushed when the shooter owns them |
 | WeaponFire RPG | rocket spam | 3 rockets in flight per player, rpm 40 |
+| WeaponFire / rockets | gas cans | only your own gas cans blow up (shot or caught in your blast); chains go through your own cans only |
 | SetPvp / WeaponReload | non-boolean, spam, gun not equipped | rejected / limiter |
 | PickMap | unknown id, non-string, map missing, spam | rejected / limiter; position comes from the map, never the client |
 | SpawnNpc | unknown id, NaN/far position, near another player, RostikPro12308 without the unlock, past 10 per player / 40 per server / prop cap, spam | rejected / limiter (3 burst, 1 per 2 s); counts as 1 prop slot (not yet Studio-tested) |

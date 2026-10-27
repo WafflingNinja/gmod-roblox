@@ -22,6 +22,9 @@ local Validate = require(script.Parent.Validate)
 local RPM_TOLERANCE = 0.85 -- accept shots slightly early (network jitter)
 local MAX_IMPULSE_SPEED = 160 -- studs/s one hit can add to a prop (rockets hit hardest)
 local NPC_SPREAD = 3 -- NPC shots spread this many times the gun's own spread
+local GAS_CAN = "gas_can" -- PropCatalog id; blows up when its owner shoots it or blasts it
+local GAS_BLAST = { radius = 14, damage = 60, impulse = 140 }
+local CHAIN_DELAY = 0.15 -- seconds between gas cans setting each other off
 
 type Rocket = {
 	owner: Player,
@@ -88,6 +91,9 @@ local function hurt(shooter: Player?, instance: Instance, amount: number)
 	local victim = character and Players:GetPlayerFromCharacter(character)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid and character and CollectionService:HasTag(character, Config.NPC_TAG) then
+		if shooter then
+			character:SetAttribute(Config.NPC_ATTACKER_ATTRIBUTE, shooter.UserId) -- an armed NPC shoots back at them
+		end
 		humanoid:TakeDamage(amount) -- NPCs are fair game, PvP or not
 		return
 	end
@@ -96,30 +102,61 @@ local function hurt(shooter: Player?, instance: Instance, amount: number)
 	end
 end
 
-local function explode(rocket: Rocket, position: Vector3)
-	local r = rocket.def.rocket :: WeaponCatalog.Rocket
-	local blast = Instance.new("Explosion")
-	blast.Position = position
-	blast.BlastRadius = r.radius
-	blast.BlastPressure = 0 -- the engine's own push and joint breaking stay off; we apply ours below
-	blast.DestroyJointRadiusPercent = 0
-	blast.Parent = Workspace
+type Blast = { radius: number, damage: number, impulse: number }
+
+local detonate: (owner: Player, can: BasePart) -> ()
+
+-- Explosion at `position`: pushes the owner's props, hurts by the usual rules, sets off the owner's gas cans.
+local function blast(owner: Player, position: Vector3, b: Blast, ignore: Instance?)
+	local explosion = Instance.new("Explosion")
+	explosion.Position = position
+	explosion.BlastRadius = b.radius
+	explosion.BlastPressure = 0 -- the engine's own push and joint breaking stay off; we apply ours below
+	explosion.DestroyJointRadiusPercent = 0
+	explosion.Parent = Workspace
 	Sfx.playAt("explosion", position)
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { rocket.part }
+	params.FilterDescendantsInstances = if ignore then { ignore } else {}
 	local hitHumanoids: { [Humanoid]: boolean } = {}
-	for _, part in Workspace:GetPartBoundsInRadius(position, r.radius, params) do
+	for _, part in Workspace:GetPartBoundsInRadius(position, b.radius, params) do
 		local offset = part.Position - position
-		local falloff = 1 - math.clamp(offset.Magnitude / r.radius, 0, 1)
+		local falloff = 1 - math.clamp(offset.Magnitude / b.radius, 0, 1)
 		local away = if offset.Magnitude > 0.1 then offset.Unit else Vector3.yAxis
-		push(rocket.owner, part, away + Vector3.yAxis * 0.5, r.impulse * falloff)
+		push(owner, part, away + Vector3.yAxis * 0.5, b.impulse * falloff)
 		local humanoid = part.Parent and part.Parent:FindFirstChildOfClass("Humanoid")
 		if humanoid and not hitHumanoids[humanoid] then
 			hitHumanoids[humanoid] = true
-			hurt(rocket.owner, part, r.damage * falloff)
+			hurt(owner, part, b.damage * falloff)
+		end
+		local prop = propOf(part)
+		if prop and prop == part and prop.Name == GAS_CAN and Ownership.isOwner(owner, prop) then
+			task.delay(CHAIN_DELAY, detonate, owner, prop)
 		end
 	end
+end
+
+function detonate(owner: Player, can: BasePart)
+	if not can.Parent or can:GetAttribute("Detonated") then
+		return
+	end
+	can:SetAttribute("Detonated", true)
+	local position = can.Position
+	can:Destroy()
+	blast(owner, position, GAS_BLAST, nil)
+end
+
+-- A bullet hit: an own gas can goes up.
+local function shotGasCan(shooter: Player, instance: Instance)
+	local prop = propOf(instance)
+	if prop and prop.Name == GAS_CAN and Ownership.isOwner(shooter, prop) then
+		detonate(shooter, prop)
+	end
+end
+
+local function explode(rocket: Rocket, position: Vector3)
+	local r = rocket.def.rocket :: WeaponCatalog.Rocket
+	blast(rocket.owner, position, r, rocket.part)
 	rocket.part:Destroy()
 end
 
@@ -246,7 +283,9 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 		local muzzle = handle and handle:FindFirstChild("Muzzle")
 		if muzzle and muzzle:IsA("Attachment") then
 			local point = muzzle.WorldPosition
-			if (point - aimOrigin).Magnitude <= 15 then
+			-- Only when the barrel is ahead of the head: a hold pose can swing the muzzle behind you, and the rocket
+			-- then started there and looked like it fired backwards.
+			if (point - aimOrigin).Magnitude <= 15 and (point - aimOrigin):Dot(aim) > 0 then
 				at = point
 			end
 		end
@@ -262,28 +301,41 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 	if hit then
 		push(player, hit.Instance, shot, def.impulse)
 		hurt(player, hit.Instance, def.damage)
+		shotGasCan(player, hit.Instance)
 	end
 	fxRemote:FireAllClients(player, def.id, finish)
 end
 
 local WeaponService = {}
 
--- An NPC shooting its gun (`def`, a Tool named def.id in the NPC) from `head` at `target`. Same spread, range and
--- damage as a player's shot, a bit less accurate; never pushes props.
-function WeaponService.npcFire(npc: Model, def: WeaponCatalog.WeaponDef, head: BasePart, target: Vector3)
+-- An NPC shooting its gun (`def`, a Tool named def.id in the NPC) from `head` at `target`, the player who hurt it.
+-- Same spread, range and damage as a player's shot, a bit less accurate; never pushes props. The target takes the
+-- damage PvP or not (they started it); anyone else in the way only with PvP on.
+function WeaponService.npcFire(npc: Model, def: WeaponCatalog.WeaponDef, head: BasePart, target: Player)
+	local targetRoot = Validate.aliveRoot(target)
+	if not targetRoot then
+		return
+	end
 	local tool = npc:FindFirstChild(def.id)
 	local handle = tool and tool:FindFirstChild("Handle")
 	if handle then
 		Sfx.play(def.sound, handle)
 	end
-	local shot = spread((target - head.Position).Unit, def.spread * NPC_SPREAD)
+	local aimAt = targetRoot.Position + Vector3.yAxis * 1.5
+	local shot = spread((aimAt - head.Position).Unit, def.spread * NPC_SPREAD)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { npc }
 	local hit = Workspace:Raycast(head.Position, shot * def.range, params)
 	local finish = if hit then hit.Position else head.Position + shot * def.range
 	if hit then
-		hurt(nil, hit.Instance, def.damage)
+		local character = target.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and character and hit.Instance:IsDescendantOf(character) then
+			humanoid:TakeDamage(def.damage)
+		else
+			hurt(nil, hit.Instance, def.damage)
+		end
 	end
 	fxRemote:FireAllClients(npc, def.id, finish)
 end

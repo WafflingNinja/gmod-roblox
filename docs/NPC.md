@@ -26,7 +26,7 @@ Jane Doe and John Doe are cut. Looks are rebuilt in code; no Catalog or ripped a
 - Grabbed (held by `Hold`) = limp (PlatformStand) + `grabbed` line. Released or punted faster than 40 studs/s = `thrown` line, gets up after 2.5 s.
 - Any gun hurts NPCs, PvP or not. Death line, body removed after 5 s.
 - Heads turn to the nearest player within 20 studs; greeting stops, faces you, then talks. Wandering sometimes hops.
-- Armed Citizen (`NpcCatalog` `gun = "Pistol"`, citizen voice): carries the pistol and, when hurt, shoots back at the nearest player within 60 studs for 8 s instead of running (`WeaponService.npcFire`: players only take damage with PvP on).
+- Armed Citizen (`NpcCatalog` `gun = "Pistol"`, citizen voice): carries the pistol and, when hurt, shoots back for 8 s at the player who shot it (nearest player within 60 studs if it was something else) instead of running. That player takes the damage PvP or not; anyone else in the line of fire only with PvP on (`WeaponService.npcFire`).
 - Walk/idle use Roblox's default R6 animations, played on the server.
 - Subtitles are always on: every line shows at the bottom of the screen for players within 90 studs, even before the sprites are uploaded (`VoiceLines` id `""` = text only).
 - `NpcCatalog.lineWeights`: `rostik_idle_2` (the LFS line) is picked 1.8x as often as his other idle lines.

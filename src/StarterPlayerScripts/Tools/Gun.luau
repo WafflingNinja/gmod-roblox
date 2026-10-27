@@ -153,7 +153,10 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 			-- the camera's own direction; in third person the camera sits off to the side and this keeps shots on it.
 			local head = player.Character and player.Character:FindFirstChild("Head")
 			local from = if head and head:IsA("BasePart") then head.Position else origin
-			local direction = if (finish - from).Magnitude > 0.1 then (finish - from).Unit else camera.CFrame.LookVector
+			local direction = if (finish - from).Magnitude > 1 then (finish - from).Unit else camera.CFrame.LookVector
+			if direction:Dot(camera.CFrame.LookVector) < 0.5 then
+				direction = camera.CFrame.LookVector -- the crosshair hit something between the camera and the head
+			end
 			fireRemote:FireServer(def.id, origin, direction)
 
 			if not def.rocket then
