@@ -5,10 +5,27 @@ Gmod-style freeroam sandbox on Roblox. File-based via Rojo; scripts in git, maps
 ## Where things are
 
 - Place: "waffles mod", placeId 86612994618738 (Studio universe 10773009648).
-- Repo: `/home/rostislav/gmod-roblox`, branch `master`. Last commit `5c7bbc8`. **Working tree has uncommitted changes from this and the previous session.** Commit only when asked.
-- Rojo: server started this session on `127.0.0.1:34872` (`rojo serve default.project.json --address 127.0.0.1 --port 34872`). Studio was closed before it reconnected; reopen the place and use Plugins > Rojo > Connect (or the server list) to sync.
-- Studio MCP: the configured `roblox-studiomcp` proxy was reachable through a local bridge while Studio was open (port 13469 / bridge 13470). Studio closed during the session; `list_roblox_studios` is empty now. Do not restart Studio without the user.
-- Gate: `scripts/check.sh` (stylua, selene, luau-lsp strict, lune specs). Was green at last run.
+- Repo: `C:\Users\rosti\gmod-roblox` (Windows now), branch **`feat/npcs-voice`** (off `master`, not pushed, not merged). Commit when the user asks.
+- Rojo: `rojo serve` on `127.0.0.1:34872`. **A change to `default.project.json` (new remotes) needs a Rojo restart**: the running server missed new remotes once.
+- Studio MCP: not available in session 3. The user tests in Studio and sends screenshots / F9 lines. Batch everything into one short Play test.
+- Gate: `scripts/check.sh` (stylua, selene, luau-lsp strict, lune specs). On Windows, stylua fails on every file because git checks out CRLF: run it on an LF copy. luau-lsp definitions are at `%TEMP%\globalTypes.d.luau`. Green at the last commit.
+
+## Session 3 (2026-10-27, Windows)
+
+Built (works in Play unless marked "not checked"):
+- **NPCs** (`Services/NpcService.luau`): Guest, Noob, Citizen, Armed Citizen, secret RostikPro12308 (Konami code on the main menu, DataStore `Unlocks`). Wander, follow/stay (E prompt), greet, head look, flee explosions, limp when grabbed/thrown, death. Armed Citizen shoots back at whoever shot it (not checked).
+- **Voice**: recorder (`audio/voice/`), 86 takes recorded and committed, 4 sprites uploaded (ids in `Shared/VoiceLines.luau`). Always-on subtitles (`NpcVoice.luau`). The LFS line is weighted 1.8x (`NpcCatalog.lineWeights`).
+- **Physgun/gravity gun**: the holder owns the held prop's physics and moves the hold target locally (no ping lag). The server drops the hold past reach + `HOLD_SLACK`.
+- **Gun holds**: the arm poses are the user's own Animation Editor clips (`GunPose.HOLD_ANIMATIONS`, per gun). Gun-in-hand comes from `POSED_GRIPS` in `ToolService`, read with lune from the user's saved place (`Desktop\waffles mod.rbxl`: dummies `Pose_*`, guns `Gun_*`, `ServerStorage.RBX_ANIMSAVES`). Grips not checked.
+- **Third person anywhere on C** (`ThirdPerson.luau`): shoulder cam on foot, chase cam in seats. Guns aim from the head at the crosshair point. Not checked.
+- **Gas cans** explode when their owner shoots or blasts them, chaining through own cans. **RPG** no longer starts behind you. Not checked.
+
+Open:
+- **Mirror still black** (`DO-MIRROR.md`). Lune check: the mirror wall is the 155-stud `solid_26` slab right at the mirror point, so the panel placement is right. The map's own mirror mesh probably covers the panel, so the reflection now draws `AlwaysOnTop`, only inside a box in front of the glass. Next: one Play run, then F9 Client `Mirror:` line + Server `MapService: mirror on ...` + a screenshot.
+- **Pickup truck floated up** once. Trigger unknown: ask what they did (grabbed it? sat in it? NPC nearby?).
+- Dupes and the Rostik unlock don't save in Studio until **Game Settings > Security > Studio access to API services** is on.
+- **Passes**: spec and ID table in `docs/GAMEPASS.md`. The user will paste the IDs. Build, test, then put them on sale.
+- Promo video: the user records clips (Win+Alt+R); cut them into a vertical short with ffmpeg (`.venv` has imageio-ffmpeg).
 - Rules: `CLAUDE.md` (no Valve/Gmod assets, server decides, `--!strict`, `task.*` only, update the matching `docs/` file in the same change).
 - Docs: `ROADMAP.md` (ticks), `TO-DO.md` (build order), `docs/TESTING.md` (manual checks), `docs/SECURITY.md` (remote matrix), `docs/ARCHITECTURE.md` (layout, remotes), `docs/TOOLS.md`, `docs/DUPES.md`, `docs/ASSETS.md` (license log).
 
