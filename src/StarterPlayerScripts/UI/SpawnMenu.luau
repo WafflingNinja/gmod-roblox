@@ -11,6 +11,7 @@ local Net = require(script.Parent.Parent.Net)
 local Sfx = require(script.Parent.Parent.Sfx)
 local Ui = require(script.Parent.Ui)
 local Config = require(ReplicatedStorage.Shared.Config)
+local NpcCatalog = require(ReplicatedStorage.Shared.NpcCatalog)
 local PropCatalog = require(ReplicatedStorage.Shared.PropCatalog)
 
 local THEME = Ui.THEME
@@ -29,6 +30,7 @@ function SpawnMenu.init()
 	local removeRemote = Net.event("RemoveProp")
 	local clearRemote = Net.event("ClearMine")
 	local notifyRemote = Net.event("Notify")
+	local spawnNpcRemote = Net.event("SpawnNpc")
 
 	local gui = make("ScreenGui", { Name = "SandboxMenu", ResetOnSpawn = false }, player:WaitForChild("PlayerGui"))
 
@@ -44,19 +46,22 @@ function SpawnMenu.init()
 
 	local list = Ui.list(window.body, { Size = UDim2.new(1, 0, 1, -40) })
 	local order = 0
+	local function heading(text: string)
+		order += 1
+		local title = label(text, list, {
+			Size = UDim2.new(1, 0, 0, 24),
+			TextSize = 15,
+			Font = THEME.bold,
+			TextColor3 = THEME.accentText,
+			LayoutOrder = order,
+		})
+		make("UIPadding", { PaddingLeft = UDim.new(0, 8) }, title)
+	end
 	local lastCategory = ""
 	for _, def in PropCatalog.list do
 		if def.category ~= lastCategory then
 			lastCategory = def.category
-			order += 1
-			local heading = label(def.category, list, {
-				Size = UDim2.new(1, 0, 0, 24),
-				TextSize = 15,
-				Font = THEME.bold,
-				TextColor3 = THEME.accentText,
-				LayoutOrder = order,
-			})
-			make("UIPadding", { PaddingLeft = UDim.new(0, 8) }, heading)
+			heading(def.category)
 		end
 		order += 1
 		local row = Ui.row(def.name, list, order)
@@ -67,6 +72,25 @@ function SpawnMenu.init()
 				spawnRemote:FireServer(def.id, point)
 			end
 		end)
+	end
+	heading("NPCs")
+	for _, def in NpcCatalog.list do
+		order += 1
+		local row = Ui.row(def.name, list, order)
+		row.button.Name = `npc_{def.id}`
+		row.button.Activated:Connect(function()
+			local point = SpawnMenu.aimPoint()
+			if point then
+				spawnNpcRemote:FireServer(def.id, point)
+			end
+		end)
+		if def.secret then
+			local function refresh()
+				row.button.Visible = player:GetAttribute(Config.SECRET_ATTRIBUTE) == true
+			end
+			player:GetAttributeChangedSignal(Config.SECRET_ATTRIBUTE):Connect(refresh)
+			refresh()
+		end
 	end
 
 	local clearButton = Ui.button("Remove all mine", window.body, false, {

@@ -1,26 +1,37 @@
 --!strict
--- How guns are held. Right arm: a per-hold pose on top of Roblox's tool hold (the launcher rides on the shoulder).
--- Left arm: any tool with a LeftGrip attachment is two-handed, so an IKControl reaches the left hand onto it; the
--- pistol has none and stays one-handed. Joint C0 offsets don't replicate, so every client poses every character
--- itself. Degrees, Euler XYZ.
+-- How guns are held. A gun with an animation in HOLD_ANIMATIONS plays it, looped, while it is out: make one by
+-- posing a rig with the mouse in Studio's Animation Editor (docs/TOOLS.md, "Gun hold poses"). A gun without one
+-- uses the code pose in POSES for its hold: right arm on top of Roblox's tool hold (the launcher rides on the shoulder), left arm
+-- forward and in under the gun (the pistol stays one-handed). Seated, the left arm is left alone. Joint C0 offsets
+-- don't replicate, so every client poses every character itself; animations on our own character replicate, so we
+-- only play our own. Degrees, Euler XYZ.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local WeaponCatalog = require(ReplicatedStorage.Shared.WeaponCatalog)
 
+-- "rbxassetid://..." of a looped hold pose per gun (WeaponCatalog id); "" = use the code pose for its hold.
+local HOLD_ANIMATIONS: { [string]: string } = {
+	Pistol = "rbxassetid://77928087563303",
+	SMG = "rbxassetid://130267423555055",
+	AR2 = "rbxassetid://89872602265012",
+	RPG = "",
+}
+
 type Pose = { [string]: { number } }
 
 local POSES: { [string]: Pose } = {
 	pistol = { RightShoulder = { 0, 10, 0 } },
-	rifle = {},
+	rifle = { LeftShoulder = { 85, 0, 35 } },
 	launcher = {
 		RightShoulder = { 30, 15, 0 },
 		RightElbow = { 60, 0, 0 },
+		LeftShoulder = { 85, 0, 30 },
 	},
 }
-local JOINTS = { "RightShoulder", "RightElbow" }
-local OWN_SKIP = { RightShoulder = true } -- FirstPerson writes the shoulders for our character
+local JOINTS = { "RightShoulder", "RightElbow", "LeftShoulder" }
+local OWN_SKIP = { RightShoulder = true, LeftShoulder = true } -- FirstPerson writes the shoulders for our character
 
 local offsets: { [string]: { [string]: CFrame } } = {}
 for hold, pose in POSES do
@@ -35,22 +46,33 @@ end
 local originals: { [Motor6D]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
 local posed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
-type Hand = { tool: Tool, control: IKControl }
-local hands: { [Model]: Hand } = setmetatable({}, { __mode = "k" }) :: any
-
 local localPlayer = Players.LocalPlayer
+local holdTrack: AnimationTrack? = nil
+local holdTrackOf: string? = nil -- the gun the track is for
+
+local function gunOf(character: Model): string?
+	local tool = character:FindFirstChildOfClass("Tool")
+	return if tool and WeaponCatalog.byId[tool.Name] then tool.Name else nil
+end
 
 local function holdOf(character: Model): string?
-	local tool = character:FindFirstChildOfClass("Tool")
-	local def = tool and WeaponCatalog.byId[tool.Name]
-	return if def then def.hold else nil
+	local gun = gunOf(character)
+	return if gun then WeaponCatalog.byId[gun].hold else nil
+end
+
+local function animated(gun: string?): boolean
+	return gun ~= nil and (HOLD_ANIMATIONS[gun] or "") ~= ""
 end
 
 local GunPose = {}
 
--- Extra rotation for `joint` of `character` (identity when no gun is out).
+-- Extra rotation for `joint` of `character` (identity when no gun is out, or the hold is animated).
 function GunPose.offset(character: Model, joint: string): CFrame
 	local hold = holdOf(character)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if (joint == "LeftShoulder" and humanoid and humanoid.Sit) or animated(gunOf(character)) then
+		return CFrame.identity
+	end
 	return if hold then offsets[hold][joint] or CFrame.identity else CFrame.identity
 end
 
@@ -88,34 +110,30 @@ local function restore(character: Model, skip: { [string]: boolean }?)
 	end
 end
 
--- Two-handed tools: the left hand follows the tool's LeftGrip. Rebuilt when the tool changes, dropped on unequip.
-local function reachLeftHand(character: Model)
-	local tool = character:FindFirstChildOfClass("Tool")
-	local handle = tool and tool:FindFirstChild("Handle")
-	local grip = handle and handle:FindFirstChild("LeftGrip")
-	local current: Hand? = hands[character]
-	if current and (not grip or current.tool ~= tool) then
-		current.control:Destroy()
-		hands[character] = nil
-		current = nil
-	end
-	if current or not tool or not grip then
+-- Our own character: play the hold animation for the gun in hand, stop it when the gun changes or goes away.
+local function animate(character: Model, gun: string?)
+	local id = if gun then HOLD_ANIMATIONS[gun] or "" else ""
+	local wanted = if id ~= "" then gun else nil
+	if wanted == holdTrackOf and (holdTrack == nil or holdTrack.IsPlaying) then
 		return
 	end
+	if holdTrack then
+		holdTrack:Stop(0.15)
+		holdTrack = nil
+	end
+	holdTrackOf = wanted
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local upper = character:FindFirstChild("LeftUpperArm")
-	local hand = character:FindFirstChild("LeftHand")
-	if not humanoid or not upper or not hand or not upper:IsA("BasePart") or not hand:IsA("BasePart") then
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if not wanted or not animator then
 		return
 	end
-	local control = Instance.new("IKControl")
-	control.Type = Enum.IKControlType.Position
-	control.ChainRoot = upper
-	control.EndEffector = hand
-	control.Target = grip
-	control.Weight = 1
-	control.Parent = humanoid
-	hands[character] = { tool = tool :: Tool, control = control }
+	local animation = Instance.new("Animation")
+	animation.AnimationId = id
+	local track = animator:LoadAnimation(animation)
+	track.Priority = Enum.AnimationPriority.Action
+	track.Looped = true
+	track:Play(0.15)
+	holdTrack = track
 end
 
 function GunPose.init()
@@ -124,14 +142,17 @@ function GunPose.init()
 			local character = player.Character
 			if character then
 				local skip = if player == localPlayer then OWN_SKIP else nil
-				if holdOf(character) then
+				local hold = holdOf(character)
+				if hold then
 					pose(character, skip)
 					posed[character] = true
 				elseif posed[character] then
 					restore(character, skip)
 					posed[character] = nil
 				end
-				reachLeftHand(character)
+				if player == localPlayer then
+					animate(character, gunOf(character))
+				end
 			end
 		end
 	end)

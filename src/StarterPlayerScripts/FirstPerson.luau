@@ -28,7 +28,7 @@ local SHOULDERS = { "RightShoulder", "LeftShoulder" }
 -- left hand reaches the foregrip instead of stretching from the left shoulder across the camera.
 local TWO_HAND_SHIFT: { [string]: CFrame } = {
 	RightShoulder = CFrame.new(-0.5, -0.3, -0.4),
-	LeftShoulder = CFrame.new(0.6, -0.3, -0.8),
+	LeftShoulder = CFrame.new(0.2, -0.4, -0.3), -- further in and forward put the left hand in the middle of the view
 }
 
 -- A menu with a Modal button is on screen (Q, M, feedback). Roblox frees the mouse for it but still reports

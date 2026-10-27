@@ -267,6 +267,8 @@ local GRIPS: { [string]: CFrame } = {
 	rifle = CFrame.new(0, 0, -0.4),
 	launcher = CFrame.new(0, -0.9, -0.2),
 }
+local PISTOL_AHEAD = 0.2 -- share of the pistol's length its centre sits ahead of the hand
+local PISTOL_ABOVE = 0.3 -- share of its height the centre sits above the hand
 
 -- A Tool around a mesh model from ServerStorage. The handle is invisible and sits at the grip; the model is turned so
 -- its barrel points down +Z (the way the right hand holds it) and placed forward of the hand, with a Muzzle at its
@@ -300,8 +302,11 @@ local function buildModelTool(
 	local box, size = model:GetBoundingBox()
 	local length = math.max(size.X, size.Z)
 	-- Bounding box centre ends up a third of the gun ahead of the hand, slightly above it. +Z is the tool's
-	-- forward, so the stock sits just behind the hand and the barrel runs ahead of it.
-	local target = CFrame.new(0, 0.15, length / 3) * CFrame.Angles(0, math.rad(yaw), 0)
+	-- forward, so the stock sits just behind the hand and the barrel runs ahead of it. A pistol's grip hangs under
+	-- its rear, so the hand sits lower and further back: at that height it was holding the slide and barrel.
+	local ahead = if hold == "pistol" then length * PISTOL_AHEAD else length / 3
+	local above = if hold == "pistol" then size.Y * PISTOL_ABOVE else 0.15
+	local target = CFrame.new(0, above, ahead) * CFrame.Angles(0, math.rad(yaw), 0)
 	model:PivotTo(target * box:ToObjectSpace(model:GetPivot()))
 
 	local tool = Instance.new("Tool")
@@ -341,7 +346,7 @@ local function buildModelTool(
 	model.Parent = tool
 	local muzzle = Instance.new("Attachment")
 	muzzle.Name = "Muzzle"
-	muzzle.Position = Vector3.new(0, 0.15, length / 3 + length / 2)
+	muzzle.Position = Vector3.new(0, above, ahead + length / 2)
 	muzzle.Parent = handle
 	if hold ~= "pistol" then
 		local grip = Instance.new("Attachment")
@@ -396,6 +401,12 @@ for _, def in WeaponCatalog.list do
 end
 
 local ToolService = {}
+
+-- A fresh copy of a WeaponCatalog gun (the Armed Citizen carries one). nil if its model is missing.
+function ToolService.buildWeapon(id: string): Tool?
+	local def = WeaponCatalog.byId[id]
+	return if def then buildModelTool(def.id, def.label, def.model, def.yaw, def.hold, def.magazine, def.scale) else nil
+end
 
 local function give(player: Player)
 	for _, entry in LOADOUT do

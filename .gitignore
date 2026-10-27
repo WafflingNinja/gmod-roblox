@@ -10,3 +10,5 @@ blender/exports/
 audio/exports/
 
 !waffles-mod.rbxl
+audio/voice/exports/
+.venv/

@@ -180,19 +180,24 @@ local function buildMirror(model: Instance, pick: FacePick)
 	mirror.CanQuery = false
 	mirror.CanTouch = false
 	mirror.CastShadow = false
-	mirror.Material = Enum.Material.SmoothPlastic
-	mirror.Color = Color3.fromRGB(24, 26, 30)
-	mirror.Reflectance = 0.05
+	-- The client's reflection covers this face. If it ever fails to draw, shiny light glass beats a black slab.
+	mirror.Material = Enum.Material.Glass
+	mirror.Color = Color3.fromRGB(170, 182, 192)
+	mirror.Reflectance = 0.6
 	mirror:SetAttribute(Config.MIRROR_FACE_ATTRIBUTE, "Front")
 	mirror.Parent = folder
 	CollectionService:AddTag(mirror, Config.MIRROR_TAG)
 
 	local frame = Instance.new("Part")
 	frame.Name = "MirrorFrame"
-	frame.Size =
-		Vector3.new(Config.MIRROR_WIDTH + Config.MIRROR_FRAME * 2, Config.MIRROR_HEIGHT + Config.MIRROR_FRAME * 2, 0.2)
-	-- Behind the glass (+Z is toward the wall). In front, the bigger black frame covered the whole reflection.
-	frame.CFrame = cf * CFrame.new(0, 0, 0.1)
+	frame.Size = Vector3.new(
+		Config.MIRROR_WIDTH + Config.MIRROR_FRAME * 2,
+		Config.MIRROR_HEIGHT + Config.MIRROR_FRAME * 2,
+		Config.MIRROR_OFFSET
+	)
+	-- Behind the glass, back to the wall (+Z is toward the wall). In front, the bigger black frame covered the
+	-- whole reflection.
+	frame.CFrame = cf * CFrame.new(0, 0, Config.MIRROR_OFFSET / 2)
 	frame.Anchored = true
 	frame.CanCollide = false
 	frame.CanQuery = false
@@ -218,6 +223,7 @@ local function makeMirrors(def: MapCatalog.MapDef, model: Instance)
 		local pick = nearestFace(model, target)
 		if pick then
 			buildMirror(model, pick)
+			print(`MapService: mirror on {def.id} at {pick.point}, facing {pick.normal}`)
 			local other = oppositeFace(pick)
 			if other then
 				buildMirror(model, other)

@@ -86,13 +86,15 @@ function GravityGun.start(): () -> ()
 			if not holding or not holding.Parent or not camera or not root then
 				return
 			end
+			local point = root.Position + EYE_OFFSET + camera.CFrame.LookVector * Config.GRAVGUN_HOLD_DISTANCE
+			local target = CFrame.new(point) * camera.CFrame.Rotation * rotation
+			Aim.moveHoldTarget(target)
 			sinceSend += dt
 			if sinceSend < SEND_INTERVAL then
 				return
 			end
 			sinceSend = 0
-			local point = root.Position + EYE_OFFSET + camera.CFrame.LookVector * Config.GRAVGUN_HOLD_DISTANCE
-			aim:FireServer(CFrame.new(point) * camera.CFrame.Rotation * rotation)
+			aim:FireServer(target)
 		end)
 	)
 

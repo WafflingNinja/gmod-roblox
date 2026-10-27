@@ -86,7 +86,8 @@ function Gun.init()
 			return
 		end
 		local def = WeaponCatalog.byId[id]
-		local character = (shooter :: Player).Character
+		-- A Player, or an NPC Model carrying the gun (the Armed Citizen).
+		local character = if shooter:IsA("Player") then shooter.Character else shooter
 		local muzzle = muzzleOf(character and character:FindFirstChild(id))
 		if def and muzzle then
 			tracer(muzzle.WorldPosition, finish, colorOf(def))

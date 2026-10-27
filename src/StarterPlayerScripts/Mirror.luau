@@ -26,6 +26,7 @@ type Candidate = { part: BasePart, distance: number }
 local player = Players.LocalPlayer
 local entries: { [BasePart]: Entry } = {}
 local MAX_FOV = 120 -- degrees; past this the viewport camera cannot cover the glass from a steep angle
+local ROOM_REBUILD_DELAY = 5 -- seconds
 
 local function reflect(v: Vector3, normal: Vector3): Vector3
 	return v - 2 * v:Dot(normal) * normal
@@ -72,14 +73,18 @@ local function buildRoom(face: Face, origin: Vector3, normal: Vector3)
 	local candidates: { Candidate } = {}
 	for _, descendant in maps:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			local offset = descendant.Position - origin
-			local depth = offset:Dot(normal)
+			-- Only parts wholly on the room side. The map's walls are huge merged meshes that also run behind the
+			-- mirror; reflected, those would land between the eye and the glass and hide the picture.
+			local cf, half = descendant.CFrame, descendant.Size / 2
+			local reach = math.abs(cf.RightVector:Dot(normal)) * half.X
+				+ math.abs(cf.UpVector:Dot(normal)) * half.Y
+				+ math.abs(cf.LookVector:Dot(normal)) * half.Z
+			local depth = (descendant.Position - origin):Dot(normal) - reach
 			local distance = boxDistance(descendant, origin)
 			if
 				descendant.Transparency < 0.98
 				and descendant.Size.Magnitude > 0.5
-				and depth > -0.5
-				and math.abs(depth) > 1.5
+				and depth > 0.2
 				and descendant.Name ~= "Mirror"
 				and descendant.Name ~= "MirrorFrame"
 				and not CollectionService:HasTag(descendant, Config.MIRROR_TAG)
@@ -181,18 +186,25 @@ local function update(entry: Entry, camera: Camera, character: Model?)
 		local eye = camera.CFrame.Position
 		local toEye = eye - origin
 		local distance = toEye:Dot(normal)
-		if distance <= 0.1 then
-			continue -- camera is behind the mirror; this face cannot be seen
-		end
-		-- EgoMoose's portal trick. The room and body copies are reflected behind the glass; the viewport camera sits at
-		-- your eye looking straight into the glass, so the panel projects to an upright rectangle with no skew. The
-		-- viewport is then stretched and shifted on the surface so its picture lands exactly on the glass. The
-		-- SurfaceGui clips whatever falls outside the panel.
 		local up = part.CFrame.UpVector
 		local right = (-normal):Cross(up)
 		local dx = toEye:Dot(right)
 		local dy = toEye:Dot(up)
 		local halfWidth, halfHeight = part.Size.X / 2, part.Size.Y / 2
+		-- Drawn on top of the world (the map's own mirror mesh sits in front of the panel and hid it), so it is only
+		-- on while the camera is in the box of room in front of the glass; past that it would show through walls.
+		local inRoom = distance > 0.1
+			and distance < Config.MIRROR_VIEW_DEPTH
+			and math.abs(dx) < halfWidth + Config.MIRROR_VIEW_SIDE
+			and math.abs(dy) < halfHeight + Config.MIRROR_VIEW_HEIGHT
+		face.gui.Enabled = inRoom
+		if not inRoom then
+			continue
+		end
+		-- EgoMoose's portal trick. The room and body copies are reflected behind the glass; the viewport camera sits at
+		-- your eye looking straight into the glass, so the panel projects to an upright rectangle with no skew. The
+		-- viewport is then stretched and shifted on the surface so its picture lands exactly on the glass. The
+		-- SurfaceGui clips whatever falls outside the panel.
 		local extent = math.max(math.abs(dx) + halfWidth, math.abs(dy) + halfHeight)
 		extent = math.min(extent, distance * math.tan(math.rad(MAX_FOV / 2)))
 		face.camera.FieldOfView = math.deg(2 * math.atan(extent / distance))
@@ -239,7 +251,8 @@ local function attach(part: BasePart)
 	gui.Name = "MirrorGui"
 	gui.Face = faceId
 	gui.LightInfluence = 0
-	gui.AlwaysOnTop = false
+	gui.AlwaysOnTop = true
+	gui.Enabled = false -- update() turns it on from inside the room
 	gui.MaxDistance = Config.MIRROR_MAX_DISTANCE
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = Config.MIRROR_PIXELS_PER_STUD
@@ -249,7 +262,7 @@ local function attach(part: BasePart)
 	viewport.AnchorPoint = Vector2.new(0.5, 0.5)
 	viewport.Position = UDim2.fromScale(0.5, 0.5)
 	viewport.Size = UDim2.fromScale(1, 1)
-	viewport.BackgroundColor3 = Color3.fromRGB(70, 78, 88)
+	viewport.BackgroundColor3 = Color3.fromRGB(150, 150, 148) -- stands in for the room's walls, which can't be copied
 	viewport.Ambient = Color3.fromRGB(150, 155, 165)
 	viewport.LightColor = Color3.fromRGB(255, 255, 255)
 	viewport.LightDirection = Vector3.new(-1, -1, -1)
@@ -275,12 +288,33 @@ local function attach(part: BasePart)
 
 	local face: Face =
 		{ gui = gui, id = faceId, viewport = viewport, camera = camera, clone = nil, owner = nil, room = room }
+	-- In PlayerGui with an Adornee, not parented to the part: a ViewportFrame SurfaceGui under a Workspace part
+	-- did not draw (the mirror stayed the panel's own color). Parented before the room copy is built, so a
+	-- failure there can't leave the mirror without its gui.
+	gui.Adornee = part
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+	entries[part] = { part = part, faces = { face } }
+
 	local origin = part.Position
 	local normal = faceNormal(part, faceId)
-	buildRoom(face, origin, normal)
-	print(`Mirror: {part:GetFullName()} reflects {#room:GetChildren()} room parts`)
-	gui.Parent = part
-	entries[part] = { part = part, faces = { face } }
+	local function rebuild()
+		room:ClearAllChildren()
+		local ok, err = pcall(function()
+			buildRoom(face, origin, normal)
+		end)
+		if not ok then
+			warn(`Mirror: room copy failed for {part:GetFullName()}: {err}`)
+		end
+		print(`Mirror: {part:GetFullName()} reflects {#room:GetChildren()} room parts`)
+	end
+	rebuild()
+	-- The map may still be replicating when the tagged panel arrives; copy the room again once it has.
+	task.delay(ROOM_REBUILD_DELAY, function()
+		if entries[part] then
+			rebuild()
+		end
+	end)
 end
 
 local function detach(part: BasePart)
@@ -327,6 +361,10 @@ function Mirror.init()
 		for _, entry in entries do
 			if (entry.part.Position - camera.CFrame.Position).Magnitude < Config.MIRROR_MAX_DISTANCE then
 				update(entry, camera, character)
+			else
+				for _, face in entry.faces do
+					face.gui.Enabled = false
+				end
 			end
 		end
 	end)

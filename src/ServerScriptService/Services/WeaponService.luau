@@ -4,6 +4,8 @@
 -- The claimed origin is ignored, so third-person aim and a spoofed camera position cannot move the shot.
 -- Ammo lives in the Tool's Ammo attribute (server-set, replicated to the HUD).
 -- Props only take impulses from their owner's guns; players only take damage when both sides have PvP on.
+-- NPCs take damage from anyone.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,6 +21,7 @@ local Validate = require(script.Parent.Validate)
 
 local RPM_TOLERANCE = 0.85 -- accept shots slightly early (network jitter)
 local MAX_IMPULSE_SPEED = 160 -- studs/s one hit can add to a prop (rockets hit hardest)
+local NPC_SPREAD = 3 -- NPC shots spread this many times the gun's own spread
 
 type Rocket = {
 	owner: Player,
@@ -79,11 +82,16 @@ local function push(shooter: Player, instance: Instance, direction: Vector3, spe
 	GravityGunService.kick(prop, direction.Unit * math.min(speed, MAX_IMPULSE_SPEED))
 end
 
-local function hurt(shooter: Player, instance: Instance, amount: number)
+-- `shooter` nil = an NPC fired; it hurts players who have PvP on.
+local function hurt(shooter: Player?, instance: Instance, amount: number)
 	local character = instance:FindFirstAncestorOfClass("Model")
 	local victim = character and Players:GetPlayerFromCharacter(character)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if victim and humanoid and victim ~= shooter and pvp(shooter) and pvp(victim) then
+	if humanoid and character and CollectionService:HasTag(character, Config.NPC_TAG) then
+		humanoid:TakeDamage(amount) -- NPCs are fair game, PvP or not
+		return
+	end
+	if victim and humanoid and victim ~= shooter and (shooter == nil or pvp(shooter)) and pvp(victim) then
 		humanoid:TakeDamage(amount)
 	end
 end
@@ -259,6 +267,26 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 end
 
 local WeaponService = {}
+
+-- An NPC shooting its gun (`def`, a Tool named def.id in the NPC) from `head` at `target`. Same spread, range and
+-- damage as a player's shot, a bit less accurate; never pushes props.
+function WeaponService.npcFire(npc: Model, def: WeaponCatalog.WeaponDef, head: BasePart, target: Vector3)
+	local tool = npc:FindFirstChild(def.id)
+	local handle = tool and tool:FindFirstChild("Handle")
+	if handle then
+		Sfx.play(def.sound, handle)
+	end
+	local shot = spread((target - head.Position).Unit, def.spread * NPC_SPREAD)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { npc }
+	local hit = Workspace:Raycast(head.Position, shot * def.range, params)
+	local finish = if hit then hit.Position else head.Position + shot * def.range
+	if hit then
+		hurt(nil, hit.Instance, def.damage)
+	end
+	fxRemote:FireAllClients(npc, def.id, finish)
+end
 
 function WeaponService.init()
 	fireRemote.OnServerEvent:Connect(fire)

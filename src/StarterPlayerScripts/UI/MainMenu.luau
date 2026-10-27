@@ -28,6 +28,19 @@ local TITLE = "waffles mod"
 local ORBIT_SECONDS = 120 -- one full circle around the map
 local INTRO_ZOOM = 0.55 -- the intro camera starts at this share of the orbit radius and eases out
 local INTRO_ZOOM_SECONDS = 5
+local KONAMI_TIMEOUT = 2
+local KONAMI = {
+	Enum.KeyCode.Up,
+	Enum.KeyCode.Up,
+	Enum.KeyCode.Down,
+	Enum.KeyCode.Down,
+	Enum.KeyCode.Left,
+	Enum.KeyCode.Right,
+	Enum.KeyCode.Left,
+	Enum.KeyCode.Right,
+	Enum.KeyCode.B,
+	Enum.KeyCode.A,
+}
 local LINK_STAGGER = 0.12 -- seconds between links appearing
 local CONTROLS = {
 	{ "WASD", "walk" },
@@ -125,6 +138,7 @@ function MainMenu.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
 	local pickRemote = Net.event("PickMap")
+	local unlockRemote = Net.event("UnlockSecret")
 
 	local gui = make("ScreenGui", {
 		Name = "MainMenu",
@@ -283,7 +297,7 @@ function MainMenu.init()
 			return
 		end
 		for _, child in playerGui:GetChildren() do
-			if child:IsA("ScreenGui") and child ~= gui and child.Enabled then
+			if child:IsA("ScreenGui") and child ~= gui and child.Enabled and not child:GetAttribute("KeepWithMenu") then
 				child.Enabled = false
 				table.insert(hidden, child)
 			end
@@ -503,9 +517,34 @@ function MainMenu.init()
 		end)
 	end)
 
+	-- Secret: the Konami code on the open menu unlocks RostikPro12308 (docs/NPC.md). A wrong key or a 2 s pause
+	-- restarts it; a third Up keeps the two before it.
+	local konamiStep, konamiLast = 0, 0
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if not processed and input.KeyCode == Enum.KeyCode.M then
 			setOpen(not root.Visible)
+		end
+		if not root.Visible or input.UserInputType ~= Enum.UserInputType.Keyboard then
+			return
+		end
+		if UserInputService:GetFocusedTextBox() then
+			return
+		end
+		local now = os.clock()
+		if now - konamiLast > KONAMI_TIMEOUT then
+			konamiStep = 0
+		end
+		konamiLast = now
+		if input.KeyCode == KONAMI[konamiStep + 1] then
+			konamiStep += 1
+		elseif input.KeyCode == KONAMI[1] then
+			konamiStep = if konamiStep == 2 then 2 else 1
+		else
+			konamiStep = 0
+		end
+		if konamiStep == #KONAMI then
+			konamiStep = 0
+			unlockRemote:FireServer()
 		end
 	end)
 

@@ -69,3 +69,14 @@ G toggles (3 burst, 1 per s); stands up after 3 s or on G again. Death always ra
 ## Not done yet
 - Sounds and impact effects (need original audio).
 - Open question: let others punt your props? Default is no, own props only.
+
+## Gun hold poses (Animation Editor, no numbers)
+Each hold (`pistol`, `rifle`, `launcher`) can use a pose you make with the mouse. `GunPose.luau` plays it looped while that gun is out; holds without one keep the code pose.
+1. Avatar tab > Rig Builder > R15 > Block Rig. A dummy appears.
+2. Put the gun on it so you can see the hands against it: drag the gun model (ServerStorage, e.g. `Pistol`) next to the dummy's right hand.
+3. Avatar tab > Animation Editor, click the dummy, name it (e.g. `RifleHold`).
+4. Click an arm part and drag the rotate rings, or switch on IK (top of the editor) and drag the hand: the arm follows. Only pose the arms.
+5. One keyframe is enough. Turn on Looping (the loop icon).
+6. `...` menu > Publish to Roblox. Copy the id.
+7. Put it in `HOLD_ANIMATIONS` in `src/StarterPlayerScripts/GunPose.luau` as `"rbxassetid://<id>"` (or give it to Claude).
+In first person the shoulders still follow the camera on top of the pose.

@@ -1,6 +1,6 @@
 --!strict
 return table.freeze({
-	BUILD = "v12 (two-handed, cursor in menus)", -- shown in the HUD; bump on every change so a stale Studio is obvious
+	BUILD = "v15 (armed citizen, hands, mirror on top)", -- shown in the HUD; bump on every change so a stale Studio is obvious
 	PROP_CAP = 150,
 	SPAWN_RANGE = 150, -- studs, character to requested spawn point
 	SPAWN_BUCKET_CAPACITY = 5,
@@ -24,6 +24,7 @@ return table.freeze({
 	HOLD_MIN = 4, -- studs, held prop distance from camera
 	HOLD_MAX = 60, -- studs, held prop distance from character (server clamps)
 	GRAB_MAX_SPEED = 150, -- studs/s a held prop can travel
+	HOLD_SLACK = 15, -- studs past the hold range before the server drops a (client-simulated) held prop
 	GRAB_BUCKET_CAPACITY = 5,
 	GRAB_REFILL_PER_SECOND = 3,
 	AIM_BUCKET_CAPACITY = 40,
@@ -86,11 +87,37 @@ return table.freeze({
 	MIRROR_WIDTH = 28, -- studs; the generated mirror panel on that wall
 	MIRROR_HEIGHT = 14,
 	MIRROR_FRAME = 0.6, -- studs the black frame sticks out around the glass
-	MIRROR_OFFSET = 0.3, -- studs in front of the collision face, clear of the visible brush meshes
+	MIRROR_OFFSET = 1, -- studs in front of the collision face, clear of the visible brush meshes (0.3 could be buried)
 	MIRROR_PIXELS_PER_STUD = 16, -- SurfaceGui resolution; 28x14 at 16 is a 448x224 render, not a 155-stud wall at 50
 	MIRROR_MAX_DISTANCE = 160, -- studs before a mirror stops rendering
 	MIRROR_ROOM_RANGE = 45, -- studs of nearby map geometry copied into the viewport
 	MIRROR_ROOM_PARTS = 140, -- cap on those copies
+	MIRROR_VIEW_DEPTH = 45, -- studs in front of the glass the reflection draws (it draws on top, so walls don't hide it)
+	MIRROR_VIEW_SIDE = 25, -- studs past each side edge
+	MIRROR_VIEW_HEIGHT = 8, -- studs above/below; keeps it from showing through the floor and ceiling
+	NPC_TAG = "SandboxNpc", -- on each NPC Model
+	NPC_PLAYER_CAP = 10,
+	NPC_SERVER_CAP = 40,
+	NPC_BUCKET_CAPACITY = 3,
+	NPC_REFILL_PER_SECOND = 0.5,
+	NPC_THINK_RATE = 5, -- Hz, all NPCs in one Heartbeat
+	NPC_WALK_SPEED = 12,
+	NPC_WANDER_RADIUS = 20, -- studs around where it was spawned (or told to stay)
+	NPC_FOLLOW_DISTANCE = 7,
+	NPC_GREET_RANGE = 10,
+	NPC_GREET_COOLDOWN = 30, -- seconds before the same player gets greeted again
+	NPC_IDLE_MIN = 15, -- seconds between idle lines
+	NPC_IDLE_MAX = 40,
+	NPC_FLEE_RANGE = 40, -- explosions this close make NPCs run
+	NPC_FLEE_SECONDS = 3,
+	NPC_THROW_SPEED = 40, -- studs/s; faster than this while not held counts as thrown
+	NPC_GETUP = 2.5, -- seconds limp after being thrown
+	NPC_VOICE_GAP = 4, -- seconds between lines per NPC
+	NPC_VOICES_AT_ONCE = 6, -- server-wide
+	NPC_HEAR_RANGE = 90, -- studs; voice and subtitles past this are skipped
+	NPC_PROMPT_BUCKET_CAPACITY = 3,
+	NPC_PROMPT_REFILL_PER_SECOND = 1,
+	SECRET_ATTRIBUTE = "SecretUnlocked", -- on Player: Konami code found, RostikPro12308 spawnable
 	FLASHLIGHT_NAME = "Flashlight", -- SpotLight on the Head
 	FLASHLIGHT_BUCKET_CAPACITY = 4,
 	FLASHLIGHT_REFILL_PER_SECOND = 2,

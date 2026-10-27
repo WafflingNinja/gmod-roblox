@@ -121,13 +121,15 @@ function Physgun.start(): () -> ()
 			if not holding or not holding.Parent or not camera then
 				return
 			end
+			local point = camera.CFrame.Position + camera.CFrame.LookVector * holdDistance
+			local target = CFrame.new(point) * rotation
+			Aim.moveHoldTarget(target)
 			sinceSend += dt
 			if sinceSend < SEND_INTERVAL then
 				return
 			end
 			sinceSend = 0
-			local point = camera.CFrame.Position + camera.CFrame.LookVector * holdDistance
-			aim:FireServer(CFrame.new(point) * rotation)
+			aim:FireServer(target)
 		end)
 	)
 

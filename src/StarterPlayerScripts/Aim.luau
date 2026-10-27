@@ -38,12 +38,26 @@ function Aim.cast(range: number): Hit?
 	}
 end
 
--- The prop (direct child of Workspace.Props) that `instance` belongs to, if any.
+-- Move our hold target (Hold.luau) on this client right now. We own the held prop's physics, so the prop follows
+-- this frame; the aim remote only keeps the server's copy close.
+function Aim.moveHoldTarget(cframe: CFrame)
+	local targets = Workspace:FindFirstChild("PhysgunTargets")
+	local target = targets and targets:FindFirstChild(tostring(player.UserId))
+	if target and target:IsA("BasePart") then
+		target.CFrame = cframe
+	end
+end
+
+-- The prop (direct child of Workspace.Props) that `instance` belongs to, if any. For an NPC (a Model there) that's
+-- its HumanoidRootPart, the part the server registers as owned.
 function Aim.prop(instance: Instance): BasePart?
 	local props = Workspace:FindFirstChild("Props")
 	local node: Instance? = instance
 	while node and node.Parent ~= props do
 		node = node.Parent
+	end
+	if node and node:IsA("Model") then
+		node = node:FindFirstChild("HumanoidRootPart")
 	end
 	if node and node:IsA("BasePart") then
 		return node

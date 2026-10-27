@@ -160,6 +160,15 @@
         },
         "Flashlight": {
           "$className": "RemoteEvent"
+        },
+        "SpawnNpc": {
+          "$className": "RemoteEvent"
+        },
+        "NpcSay": {
+          "$className": "RemoteEvent"
+        },
+        "UnlockSecret": {
+          "$className": "RemoteEvent"
         }
       },
       "MapLighting": {

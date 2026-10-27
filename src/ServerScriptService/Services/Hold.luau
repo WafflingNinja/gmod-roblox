@@ -1,9 +1,12 @@
 --!strict
--- Shared hold for the physgun and gravity gun. The client says where to hold; the server owns the physics.
--- A held prop is pulled toward an anchored target part by Align constraints, so speed is capped
--- no matter what the client sends, and the prop is server-owned while held.
+-- Shared hold for the physgun and gravity gun. A held prop is pulled toward an anchored target part by Align
+-- constraints. The holder gets network ownership of the prop and moves the target locally every frame, so the
+-- hold has no round-trip lag (server-owned, it trailed the crosshair by the ping). The server still moves its own
+-- copy of the target from the aim remote (clamped), and releases the hold if the prop ends up past the hold range,
+-- so an exploited client can only move its own prop, near itself.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -18,6 +21,7 @@ type HoldState = {
 	prop: BasePart,
 	target: Part,
 	maxDistance: number, -- target clamp, studs from the character
+	reach: number, -- farther than this (+ HOLD_SLACK) from the character drops the hold; covers a far grab
 	parts: { Instance }, -- constraints, attachments, beam: destroyed on release
 	connections: { RBXScriptConnection },
 }
@@ -68,7 +72,7 @@ end
 function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color3, maxDistance: number, hum: string)
 	prop.Anchored = false
 	pcall(function()
-		prop:SetNetworkOwner(nil)
+		prop:SetNetworkOwner(player)
 	end)
 
 	local target = Instance.new("Part")
@@ -95,7 +99,7 @@ function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color
 	position.ApplyAtCenterOfMass = true
 	position.MaxForce = math.huge
 	position.MaxVelocity = Config.GRAB_MAX_SPEED
-	position.Responsiveness = 40
+	position.Responsiveness = 80
 	position.Parent = prop
 
 	local orientation = Instance.new("AlignOrientation")
@@ -105,7 +109,7 @@ function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color
 	orientation.RigidityEnabled = false
 	orientation.MaxTorque = math.huge
 	orientation.MaxAngularVelocity = 20
-	orientation.Responsiveness = 25
+	orientation.Responsiveness = 50
 	orientation.Parent = prop
 
 	local parts: { Instance } = { holdAttachment, position, orientation }
@@ -147,10 +151,12 @@ function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color
 	end
 
 	target.Parent = targetsFolder
+	local root = Validate.aliveRoot(player)
 	holds[player] = {
 		prop = prop,
 		target = target,
 		maxDistance = maxDistance,
+		reach = math.max(maxDistance, if root then (prop.Position - root.Position).Magnitude else 0),
 		parts = parts,
 		connections = connections,
 	}
@@ -175,6 +181,20 @@ function Hold.init()
 			position = root.Position + offset.Unit * hold.maxDistance
 		end
 		hold.target.CFrame = CFrame.new(position) * aim.Rotation:Orthonormalize()
+	end)
+
+	-- The holder simulates the prop, so check it stayed within reach; past that it was moved by hand, not the hold.
+	RunService.Heartbeat:Connect(function()
+		for player, hold in holds do
+			local root = Validate.aliveRoot(player)
+			if root and (hold.prop.Position - root.Position).Magnitude > hold.reach + Config.HOLD_SLACK then
+				local prop = hold.prop
+				Hold.release(player)
+				pcall(function()
+					prop:SetNetworkOwner(nil)
+				end)
+			end
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(Hold.release)

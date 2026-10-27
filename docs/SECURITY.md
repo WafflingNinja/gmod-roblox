@@ -33,6 +33,7 @@ The game is public from day one. Assume executors.
 | ClearMine | spam | limiter |
 | PhysgunGrab | other player's prop, map part, no tool equipped, out of range | rejected |
 | PhysgunAim | NaN/inf CFrame, target 1000 studs away | rejected / clamped to 60 studs of character |
+| Held prop physics | holder owns the held prop's physics (no hold lag), so an exploiter could move it by hand | accepted: own props only, speed still capped by PhysicsGuard, and the server drops the hold and takes ownership back once the prop is 15 studs past the grab distance (`Config.HOLD_SLACK`) |
 | ToolgunUse | unknown mode, Physgun equipped, point 500 studs away, other's prop | rejected |
 | ToolgunUse Scale/Paint | direction 5, colour index 99 / NaN | rejected |
 | ToolgunUse Thruster | non-unit normal | rejected |
@@ -51,6 +52,10 @@ The game is public from day one. Assume executors.
 | WeaponFire RPG | rocket spam | 3 rockets in flight per player, rpm 40 |
 | SetPvp / WeaponReload | non-boolean, spam, gun not equipped | rejected / limiter |
 | PickMap | unknown id, non-string, map missing, spam | rejected / limiter; position comes from the map, never the client |
+| SpawnNpc | unknown id, NaN/far position, near another player, RostikPro12308 without the unlock, past 10 per player / 40 per server / prop cap, spam | rejected / limiter (3 burst, 1 per 2 s); counts as 1 prop slot (not yet Studio-tested) |
+| UnlockSecret | fired directly, without typing the code | accepted: the server can't see keypresses and the unlock is cosmetic; limiter 1 per 10 s, the spawn still goes through the NPC caps and Ownership |
+| NpcSay (server to client) | n/a | carries only an NPC model and a VoiceLines id; the client looks up text and audio itself |
+| NPC E prompt | someone else's NPC, spam | ignored unless owner / limiter |
 | SendFeedback | non-string, 1 MB string, invalid UTF-8, control chars, spam | rejected / cleaned / limiter (1 per 60 s); logged with `%q`, never shown to players |
 | DupeLoad | hand-edited DataStore value (unknown id, NaN, broken link) | `DupeCodec.sanitize` drops it (lune-tested) |
 
