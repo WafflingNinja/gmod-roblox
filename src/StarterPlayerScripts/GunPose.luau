@@ -16,7 +16,7 @@ local HOLD_ANIMATIONS: { [string]: string } = {
 	Pistol = "rbxassetid://77928087563303",
 	SMG = "rbxassetid://130267423555055",
 	AR2 = "rbxassetid://89872602265012",
-	RPG = "",
+	RPG = "rbxassetid://134877433390392",
 }
 
 type Pose = { [string]: { number } }

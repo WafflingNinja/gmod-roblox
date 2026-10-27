@@ -1,6 +1,6 @@
 --!strict
 return table.freeze({
-	BUILD = "v15 (armed citizen, hands, mirror on top)", -- shown in the HUD; bump on every change so a stale Studio is obvious
+	BUILD = "v16 (third person anywhere, gun poses)", -- shown in the HUD; bump on every change so a stale Studio is obvious
 	PROP_CAP = 150,
 	SPAWN_RANGE = 150, -- studs, character to requested spawn point
 	SPAWN_BUCKET_CAPACITY = 5,

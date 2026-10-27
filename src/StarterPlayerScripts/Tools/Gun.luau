@@ -145,12 +145,18 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 				return
 			end
 			local origin = camera.CFrame.Position
-			local direction = camera.CFrame.LookVector
+			local hit = Aim.cast(def.range)
+			local finish = if hit and hit.result
+				then hit.result.Position
+				else origin + camera.CFrame.LookVector * def.range
+			-- The server shoots from our head, so aim from there at what the crosshair is on. In first person that is
+			-- the camera's own direction; in third person the camera sits off to the side and this keeps shots on it.
+			local head = player.Character and player.Character:FindFirstChild("Head")
+			local from = if head and head:IsA("BasePart") then head.Position else origin
+			local direction = if (finish - from).Magnitude > 0.1 then (finish - from).Unit else camera.CFrame.LookVector
 			fireRemote:FireServer(def.id, origin, direction)
 
 			if not def.rocket then
-				local hit = Aim.cast(def.range)
-				local finish = if hit and hit.result then hit.result.Position else origin + direction * def.range
 				tracer(if muzzle then muzzle.WorldPosition else origin, finish, colorOf(def))
 				impact(finish)
 			end

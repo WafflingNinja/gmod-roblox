@@ -121,7 +121,7 @@ function SpawnMenu.init()
 	local function updateHud()
 		local count = player:GetAttribute(Config.COUNT_ATTRIBUTE) or 0
 		hud.Text =
-			`Props {count}/{Config.PROP_CAP}    Q spawn menu    X remove aimed prop    1-6 weapons    G ragdoll    M menu    build {Config.BUILD}`
+			`Props {count}/{Config.PROP_CAP}    Q spawn menu    X remove aimed prop    1-6 weapons    G ragdoll    C third person    M menu    build {Config.BUILD}`
 	end
 	player:GetAttributeChangedSignal(Config.COUNT_ATTRIBUTE):Connect(updateHud)
 	updateHud()

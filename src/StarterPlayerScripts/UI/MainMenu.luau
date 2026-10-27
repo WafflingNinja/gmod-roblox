@@ -56,7 +56,7 @@ local CONTROLS = {
 	{ "V", "fire thrusters" },
 	{ "F", "flashlight" },
 	{ "G", "ragdoll / stand up" },
-	{ "C (in a seat)", "third-person camera, guns still aim" },
+	{ "C", "third person on / off (shoulder cam, chase cam in cars), guns still aim" },
 	{ "LMB / R", "fire / reload (guns)" },
 	{ "M", "this menu" },
 }

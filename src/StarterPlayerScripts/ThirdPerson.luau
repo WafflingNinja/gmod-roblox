@@ -1,7 +1,9 @@
 --!strict
--- C while seated: a chase camera behind your head that turns with the mouse, so you can see the car you drive.
--- The mouse stays locked to the centre, so the crosshair, guns and tools aim exactly as in first person.
--- Turns itself off when you leave the seat, die, or press C again.
+-- C: third person, on foot or in a seat; C again goes back to first person. On foot it is an over-the-shoulder
+-- camera and the body turns with it, so you face where you aim; in a seat it is a chase camera behind your head
+-- (the car turns you). The mouse stays locked to the centre, so the crosshair, guns and tools aim exactly as in
+-- first person. It blends in from your eyes, eases back out after a wall pushed it in, and stays on through
+-- respawns; the main menu (M) switches it off.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,15 +11,21 @@ local Workspace = game:GetService("Workspace")
 
 local Aim = require(script.Parent.Aim)
 
-local DISTANCE = 12 -- studs behind the head
-local HEIGHT = 2.5 -- studs above it
+local FOOT_OFFSET = Vector3.new(1.8, 1.2, 8) -- studs from the head: right, up, back
+local SEAT_OFFSET = Vector3.new(0, 2.5, 12)
 local SENSITIVITY = 0.004 -- radians per pixel, before MouseDeltaSensitivity
 local PITCH_LIMIT = math.rad(70)
+local BLEND_SECONDS = 0.25 -- from the eyes out to the shoulder when switching on
+local EASE_OUT = 6 -- per second, how fast the camera backs out again after a wall
+local WALL_GAP = 0.5 -- studs kept between the camera and a wall
 
 local player = Players.LocalPlayer
 local active = false
 local yaw = 0
 local pitch = 0
+local blend = 1 -- 0 = at the eyes, 1 = fully out
+local distance = 0 -- current camera distance along the offset, after walls
+local turnedOff: Humanoid? = nil -- the humanoid we took AutoRotate from
 
 local ThirdPerson = {}
 
@@ -25,10 +33,10 @@ function ThirdPerson.isActive(): boolean
 	return active
 end
 
-local function seatPart(): BasePart?
+local function humanoidOf(): Humanoid?
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	return if humanoid and humanoid.Health > 0 then humanoid.SeatPart else nil
+	return if humanoid and humanoid.Health > 0 then humanoid else nil
 end
 
 -- Roblox's camera script stops updating body transparency while the camera is Scriptable, so the body stays
@@ -48,27 +56,94 @@ local function setBodyHidden(hidden: boolean)
 	end
 end
 
+-- On foot we turn the body ourselves; give turning back to the humanoid when we stop.
+local function setAutoRotate(humanoid: Humanoid?)
+	if turnedOff and turnedOff ~= humanoid then
+		turnedOff.AutoRotate = true
+		turnedOff = nil
+	end
+	if humanoid and turnedOff ~= humanoid then
+		humanoid.AutoRotate = false
+		turnedOff = humanoid
+	end
+end
+
 local function setActive(on: boolean)
 	if on == active then
 		return
 	end
 	active = on
-	if not on then
-		setBodyHidden(true)
-	end
 	local camera = Workspace.CurrentCamera
-	if not camera then
-		return
-	end
-	local seat = seatPart()
-	Aim.setIgnored(if on and seat then Aim.prop(seat) or seat else nil)
 	if on then
-		local x, y = camera.CFrame:ToOrientation()
-		pitch, yaw = x, y
-		camera.CameraType = Enum.CameraType.Scriptable
+		if camera then
+			local x, y = camera.CFrame:ToOrientation()
+			pitch, yaw = x, y
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+		blend = 0
+		distance = 0
 	else
-		camera.CameraType = Enum.CameraType.Custom
+		setAutoRotate(nil)
+		Aim.setIgnored(nil)
+		setBodyHidden(true)
+		if camera then
+			camera.CameraType = Enum.CameraType.Custom
+		end
 	end
+end
+
+local function smoothstep(t: number): number
+	return t * t * (3 - 2 * t)
+end
+
+local function update(dt: number)
+	local camera = Workspace.CurrentCamera
+	local humanoid = humanoidOf()
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not camera or not humanoid or not head or not head:IsA("BasePart") or not root or not root:IsA("BasePart") then
+		setAutoRotate(nil)
+		return -- dead or respawning: stay in third person, pick up again on the new body
+	end
+	camera.CameraType = Enum.CameraType.Scriptable
+	UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+	setBodyHidden(false)
+
+	local delta = UserInputService:GetMouseDelta() * SENSITIVITY * UserInputService.MouseDeltaSensitivity
+	yaw -= delta.X
+	pitch = math.clamp(pitch - delta.Y, -PITCH_LIMIT, PITCH_LIMIT)
+	local rotation = CFrame.fromOrientation(pitch, yaw, 0)
+
+	local seat = humanoid.SeatPart
+	local vehicle = if seat then Aim.prop(seat) or seat else nil
+	Aim.setIgnored(vehicle)
+	local ragdolled = humanoid:GetState() == Enum.HumanoidStateType.Physics
+	if seat or ragdolled then
+		setAutoRotate(nil)
+	else
+		setAutoRotate(humanoid)
+		root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, yaw, 0)
+	end
+
+	-- Pull in when a wall is between the head and the camera; ease back out when it's clear.
+	local eye = head.Position
+	local wanted = rotation:VectorToWorldSpace(if seat then SEAT_OFFSET else FOOT_OFFSET)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = { character :: Instance }
+	if vehicle then
+		table.insert(ignore, vehicle)
+	end
+	params.FilterDescendantsInstances = ignore
+	local hit = Workspace:Raycast(eye, wanted, params)
+	local clear = if hit then math.max(hit.Distance - WALL_GAP, 0.5) else wanted.Magnitude
+	distance = if clear < distance then clear else distance + (clear - distance) * math.min(1, dt * EASE_OUT)
+
+	blend = math.min(1, blend + dt / BLEND_SECONDS)
+	local out = wanted.Unit * distance * smoothstep(blend)
+	camera.CFrame = rotation + eye + out
+	camera.Focus = CFrame.new(eye)
 end
 
 function ThirdPerson.init()
@@ -77,39 +152,16 @@ function ThirdPerson.init()
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.C then
-			setActive(not active and seatPart() ~= nil)
+			setActive(not active)
 		elseif input.KeyCode == Enum.KeyCode.M then
 			setActive(false) -- the main menu flies its own camera
 		end
 	end)
 
-	RunService:BindToRenderStep("ThirdPersonCamera", Enum.RenderPriority.Camera.Value + 3, function()
-		if not active then
-			return
+	RunService:BindToRenderStep("ThirdPersonCamera", Enum.RenderPriority.Camera.Value + 3, function(dt: number)
+		if active then
+			update(dt)
 		end
-		local seat = seatPart()
-		local head = player.Character and player.Character:FindFirstChild("Head")
-		local camera = Workspace.CurrentCamera
-		if not seat or not head or not head:IsA("BasePart") or not camera then
-			setActive(false)
-			return
-		end
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		setBodyHidden(false)
-		local delta = UserInputService:GetMouseDelta() * SENSITIVITY * UserInputService.MouseDeltaSensitivity
-		yaw -= delta.X
-		pitch = math.clamp(pitch - delta.Y, -PITCH_LIMIT, PITCH_LIMIT)
-		local rotation = CFrame.fromOrientation(pitch, yaw, 0)
-		local focus = head.Position + Vector3.new(0, HEIGHT, 0)
-		local wanted = rotation:VectorToWorldSpace(Vector3.new(0, 0, DISTANCE))
-		-- Pull in when a wall is between the head and the camera.
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { player.Character :: Instance, Aim.prop(seat) or seat }
-		local hit = Workspace:Raycast(focus, wanted, params)
-		local offset = if hit then wanted.Unit * math.max(hit.Distance - 0.5, 1) else wanted
-		camera.CFrame = rotation + focus + offset
-		camera.Focus = CFrame.new(focus)
 	end)
 end
 

@@ -34,7 +34,7 @@ Open a new baseplate place in Studio, connect Rojo, press Play. Test with Server
 | F | Flashlight on / off |
 | G | Ragdoll / stand up |
 | WASD in a Driver Seat | drive (cars from the Cars tab, or seat + Wheel tool builds) |
-| C in a seat | third-person chase camera; guns and tools still aim at the crosshair |
+| C | third person on / off: over the shoulder on foot, chase camera in a seat; guns and tools still aim at the crosshair |
 
 ## Docs
 
