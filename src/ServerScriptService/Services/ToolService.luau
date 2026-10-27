@@ -269,6 +269,14 @@ local GRIPS: { [string]: CFrame } = {
 }
 local PISTOL_AHEAD = 0.2 -- share of the pistol's length its centre sits ahead of the hand
 local PISTOL_ABOVE = 0.3 -- share of its height the centre sits above the hand
+-- Grips placed by hand on posed dummies in Studio (docs/TOOLS.md, "Gun hold poses"), read from the saved place.
+-- They win over GRIPS and already include the gun's scale.
+local POSED_GRIPS: { [string]: CFrame } = {
+	Pistol = CFrame.new(-0.0728, -0.0195, 0.5545),
+	SMG = CFrame.new(0, 0.0954, 1.033),
+	AR2 = CFrame.new(0.084, -0.1281, 1.3596),
+	RPG = CFrame.new(0, -0.2211, 1.642),
+}
 
 -- A Tool around a mesh model from ServerStorage. The handle is invisible and sits at the grip; the model is turned so
 -- its barrel points down +Z (the way the right hand holds it) and placed forward of the hand, with a Muzzle at its
@@ -318,7 +326,7 @@ local function buildModelTool(
 	if scale then
 		gripFrame = CFrame.new(gripFrame.Position * scale) * gripFrame.Rotation
 	end
-	tool.Grip = gripFrame
+	tool.Grip = POSED_GRIPS[name] or gripFrame
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
 	handle.Size = Vector3.new(0.3, 0.3, 0.3)

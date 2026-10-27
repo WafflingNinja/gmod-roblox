@@ -80,3 +80,4 @@ Each hold (`pistol`, `rifle`, `launcher`) can use a pose you make with the mouse
 6. `...` menu > Publish to Roblox. Copy the id.
 7. Put it in `HOLD_ANIMATIONS` in `src/StarterPlayerScripts/GunPose.luau` as `"rbxassetid://<id>"` (or give it to Claude).
 In first person the shoulders still follow the camera on top of the pose.
+8. Gun position in the hand: free the guns, place them on the posed dummies, then File > Save to File As. Claude reads the dummies, poses and guns from that file and writes `POSED_GRIPS` in `ToolService.luau`.
