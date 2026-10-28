@@ -14,7 +14,11 @@ The game is public from day one. Assume executors.
 ## Limits
 | What | Value | Where |
 |---|---|---|
-| Props per player | 150 | `Config.PROP_CAP` |
+| Props per player | 150 (250 with Builder+) | `Config.PROP_CAP`, `Config.VIP_PROP_CAP` |
+| Props per server | 1,500 | `Config.SERVER_PROP_CAP`, `Ownership.canSpawn` |
+| Players per server | 24 | `Config.MAX_PLAYERS` (Creator Dashboard setting is authoritative) |
+| NPCs per player | 10 (20 with NPC Pack) | `Config.NPC_PLAYER_CAP`, `Config.VIP_NPC_CAP` |
+| Dupe slots per player | 10 (30 with More Dupe Slots) | `Config.DUPE_SLOTS`, `Config.VIP_DUPE_SLOTS` |
 | Spawn range | 150 studs | `Config.SPAWN_RANGE` |
 | Spawn rate | 5 burst, 4/s | `Config.SPAWN_*` |
 | Remove rate | 10 burst, 5/s | `Config.REMOVE_*` |
@@ -43,6 +47,11 @@ The game is public from day one. Assume executors.
 | PhysgunFreeze | fired while holding with the gravity gun | rejected (Physgun must be equipped) |
 | ToolgunUse Wheel | unknown wheel id, non-unit normal, past constraint cap | rejected (not yet Studio-tested) |
 | SpawnProp | car id, position inside another player | cars allowed (1 prop slot); near-player rejected with toast |
+| SpawnProp | `car_sports` without the Sports Car pass | rejected; the pass is checked server-side from the Player attribute |
+| SetBeamColor | index 0 / 999 / NaN / string, no Physgun Colors pass, spam | rejected / limiter (5 burst, 2/s); VIP gold is resolved server-side |
+| DupeLoad | dupe containing a pass-locked prop, other player's slot | rejected; slot limit is checked per player (10 or 30) |
+| ProcessReceipt | unknown product, player left | `NotProcessedYet`; tips grant no game state |
+| PromptGamePassPurchaseFinished | spoofed purchase | the server only grants when Roblox says `purchased = true` for one of our pass ids |
 | RagdollToggle | spam, while dead | limiter (3 burst, 1/s) / rejected |
 | ToolgunUse Dupe | other's prop, map part | rejected (owner check); flood-fill only follows own props |
 | DupeSave / DupeDelete | slot 0, 11, 1.5, NaN, string, empty clipboard, spam | rejected / limiter (not yet Studio-tested) |
@@ -52,8 +61,8 @@ The game is public from day one. Assume executors.
 | WeaponFire RPG | rocket spam | 3 rockets in flight per player, rpm 40 |
 | WeaponFire / rockets | gas cans | only your own gas cans blow up (shot or caught in your blast); chains go through your own cans only |
 | SetPvp / WeaponReload | non-boolean, spam, gun not equipped | rejected / limiter |
-| PickMap | unknown id, non-string, map missing, spam | rejected / limiter; position comes from the map, never the client |
-| SpawnNpc | unknown id, NaN/far position, near another player, RostikPro12308 without the unlock, past 10 per player / 40 per server / prop cap, spam | rejected / limiter (3 burst, 1 per 2 s); counts as 1 prop slot (not yet Studio-tested) |
+| PickMap | unknown id, non-string, map missing, spam | rejected / limiter; position comes from the map, never the client; a target with a different `placeId` is a server-side TeleportAsync |
+| SpawnNpc | unknown id, NaN/far position, near another player, RostikPro12308 without the unlock, past 10 per player (20 with NPC Pack) / 40 per server / prop cap, spam | rejected / limiter (3 burst, 1 per 2 s); counts as 1 prop slot (not yet Studio-tested) |
 | UnlockSecret | fired directly, without typing the code | accepted: the server can't see keypresses and the unlock is cosmetic; limiter 1 per 10 s, the spawn still goes through the NPC caps and Ownership |
 | NpcSay (server to client) | n/a | carries only an NPC model and a VoiceLines id; the client looks up text and audio itself |
 | NPC E prompt | someone else's NPC, spam | ignored unless owner / limiter |
@@ -70,5 +79,5 @@ The game is public from day one. Assume executors.
 
 ## Open items
 - **Physics griefing:** an owner can still drop huge slabs on others or ram them with a car below the speed cap.
-- **Part cap vs prop cap:** each dupe part is one prop, so the 150 cap holds for dupes too.
+- **Part cap vs prop cap:** each dupe part is one prop, so the 150 (250 with Builder+) cap holds for dupes too.
 - **Trust:** never log player-supplied strings unescaped; never use client text in `Instance.Name`.

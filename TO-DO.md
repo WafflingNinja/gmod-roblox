@@ -1,10 +1,51 @@
 # TO-DO: everything left, in build order
 
-Written so one long autonomous run can finish the game without re-planning. Work top to bottom. Each phase ends with a **Done when** check; do not start the next phase until it passes. Rules in `CLAUDE.md` always apply (server decides, `--!strict`, no Valve/Gmod assets, `scripts/check.sh` green, update the matching `docs/` file in the same change).
+Written so one long autonomous run can finish the game without re-planning. Work top to bottom. Each phase ends with a **Done when** check; do not start the next phase until it passes. Rules in `CLAUDE.md` always apply (server decides, `--!strict`, assets are the user's call, `scripts/check.sh` green, update the matching `docs/` file in the same change).
 
-**State 2026-10-26:** see `handoff.md`. Built since: dupes, feedback, maps (Construct, Flatgrass), main menu, keyboard look, four guns, shared UI skin. Untested in Studio: guns firing, gun holds, dupes, feedback.
+**State 2026-10-28:** ROADMAP section 7 items 1-3, 5 and 7 are code-complete (moods all 8 maps, Split Worlds + place teleports, 1,500 server cap, map factory). Branding skipped; Server Browser deferred by the user. Studio/two-client checks are in `docs/TESTING.md`; see `handoff.md`. Still untested in Studio: the whole section 7 pass, guns, holds, dupes, feedback, mirror.
 
 **State at backup time (2026-10-25):** steps 1 and 2 are built and Studio-verified with 1 client: spawn menu, ownership, 150 cap, physgun, toolgun (weld, rope, thruster, scale, paint, unweld, remove), multi-part prop details. Nothing is committed to git yet.
+
+## PLAYTEST 2026-10-28: do this FIRST (user's own words, in order of the walkthrough)
+
+**How to work (user's rule):** code the whole list in one go, no Studio test after each item, keep it simple (no new frameworks, no abstractions, no extra features). `scripts/check.sh` green at the end, then ONE batched Studio test by the user. After that: bug fixes and finishing touches. Search GitHub / dev forums / Creator Store for a ready-made version before hand-rolling anything big (bunny hop especially).
+
+**Skills to use:** `roblox-luau` (all code), `roblox-physics` (bhop, water, invisible walls, floating doors), `roblox-ui` + `game-ui-ux` (menu), `game-feel` (movement), `code-review` (step 1), `systematic-debugging` (invisible walls), `verification-before-completion` (before saying done), `unslop` (any text shown to players). Docs: use context7 / GitHub search first for the bhop system.
+
+### Step 1: whole code review + bug report (write it to `docs/BUGS.md`, then fix all of it)
+- Run `code-review` over the entire repo, list every bug with file:line, fix everything that affects correctness. Already-known unfixed: `polishLook` rescans every map at startup (fold it into the importer); `Hold` / `PhysgunService` / `NpcService` untested in play.
+
+### Step 2: the list
+**Main menu (Start Game screen)**
+- [ ] Looks awful. Redo it Gmod-style with an icon on every button (Roblox built-in icon images or simple shapes, no ripped assets). Keep the working links and layout from `MainMenu.luau`.
+
+**Doors (all maps)**
+- [ ] Many floating doors on every map (most on Mall Parking and Bangclaw): door models not sitting in their frame. Find why (pivot/hinge from the importer, or door parts left in the sky) and fix in `DoorService` / the importer.
+- [ ] One door on Bangclaw is blocked by another texture/wall: check what overlaps it.
+- [ ] REMOVE the big blue "E" marker above every door (`addMarker` / `DoorMarker`). Keep the normal E prompt.
+
+**Mall Parking**
+- [ ] Teleporting in drops you UNDER the map. Fix the spawn point.
+- [ ] Always night when you are on this map (Lighting mood per map already exists, add a night mood and apply it for Mall Parking). It is also far too bright: lower ambient/brightness, check for huge lights.
+
+**Bangclaw (Bank Claw)**
+- [ ] Too bright. Lower lighting/ambient a bit.
+
+**Big City**
+- [ ] Looks good, leave it.
+- [ ] Water does not behave like water. Make it swimmable (Terrain water, or Humanoid Swimming with buoyancy), props float.
+
+**Backrooms**
+- [ ] A hole in the floor you cannot jump down: something invisible blocks it. User says this has happened before on other maps too. Find invisible collision (the ForceField/hull logic in `MapService.init`, solid_* clips, Poly parts) and remove the ones sitting over openings. Consider a general fix: hull parts with `Transparency = 1` that overlap a hole.
+
+**Backrooms Movie**
+- [ ] A wall surrounded by tape. In the movie Clark finds a hidden passage in that wall and marks it with tape. The tape-outlined part must be walkable: remove collision on the wall section inside the tape (and on the tape itself).
+
+**Movement (new)**
+- [ ] Bunny hopping, crouching, sprinting. Search online for a premade bhop/movement system and adapt it; do NOT write a big one from scratch. Server stays authoritative for anything that matters. Log the source in `docs/ASSETS.md`.
+- [ ] Fly, unfly, `speed <n>`, `fly <n>` commands already work. Leave them.
+
+**Maps checked so far:** Mall Parking, Bigcity, Bangclaw, Backrooms, Backrooms Movie. Others not looked at yet.
 
 ## 0. Needs the user (batch these, do not block on them)
 | When | What | Why |
@@ -90,7 +131,7 @@ Work through `docs/LAUNCH.md`. Needs the user for publishing, thumbnail, descrip
 ### 5.1 Original prop meshes (replaces primitives)
 - `blender/props.py` builds each catalog prop procedurally (headless: `blender -b --python blender/props.py`), exports FBX per prop to `blender/exports/`. Start with the 13 current props plus: traffic cone, pallet, tire, propane tank, bowling ball, watermelon, sawblade, oil drum, bench, door.
 - After the user imports (or 5.9), catalog gets `visual = {meshId, size, offset}`: a MeshPart child, no collision, welded to the primitive hitbox; the old `details` are dropped for that prop. Scale tool already rescales children with `DetailSize`.
-- License log in `docs/ASSETS.md` for any CC0 pack used (Kenney, Quaternius). No Gmod/Valve shapes copied 1:1; own proportions and textures.
+- License log in `docs/ASSETS.md` for every imported asset. Gmod/Valve shapes and textures may be used on the user's call; log the source.
 
 ### 5.2 Gun roster (partly built 2026-10-26: Pistol, SMG, Pulse Rifle, Rocket Launcher; untested in play; models and sounds come from Creator Store users, see `docs/ASSETS.md`)
 - Provenance check first: the FFA work has 7 procedurally generated Blender guns (original) and a separate set of 48 "BD" meshes. Do not use the BD meshes in a public game until the user confirms where they came from and the license. The 7 are fine.
@@ -143,5 +184,8 @@ Only if the user provides an Open Cloud API key with `asset:write`: `tools/uploa
 - Upload the 13 generated SFX (`audio/exports/*.ogg`, Asset Manager > Bulk Import): pending
 - BD mesh provenance and license: pending
 - Publish and settings: pending
-- gm_construct / gm_flatgrass Store maps: provenance unknown, DMCA risk accepted by the user 2026-10-26; replace with originals before a public launch if they turn out to be Valve conversions
+- gm_construct / gm_flatgrass Store maps: provenance unknown, DMCA risk accepted by the user 2026-10-26; source logged in `docs/ASSETS.md`
 - Studio: Game Settings > Security > Enable Studio Access to API Services (dupe saving): pending
+- Menu music: paste the Roblox audio id into `Config.MENU_MUSIC_ID`: pending
+- Split Worlds: create one place per map in the same universe and paste each place id into `MapCatalog.placeId`: pending
+- Map factory: Open Cloud key with assets read+write for texture uploads (`ROBLOX_API_KEY`, `ROBLOX_USER_ID`): pending

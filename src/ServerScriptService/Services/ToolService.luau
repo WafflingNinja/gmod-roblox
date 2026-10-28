@@ -293,7 +293,7 @@ local function buildModelTool(
 ): Tool?
 	local source = ServerStorage:FindFirstChild(modelName)
 	if not source then
-		warn(`ToolService: model ServerStorage.{modelName} missing, {name} not given`)
+		warn(`ToolService: model ServerStorage.{modelName} missing (needed by {name})`)
 		return nil
 	end
 	local model = Instance.new("Model")

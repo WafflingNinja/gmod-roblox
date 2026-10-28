@@ -2,7 +2,7 @@
 
 Rule: sell fun and convenience, never power. A sandbox dies when paying players win fights. Everything here fits an all-ages rating.
 
-**Status (2026-10-27):** icons made, passes being created in Creator Hub **off sale**. No pass code exists yet. Do not put anything on sale until its perk is built and tested (steps below).
+**Status (2026-10-27):** icons made, IDs wired into the game (`Shared/PassCatalog.luau`, `Services/Passes.luau`). Passes are still being created in Creator Hub and stay **off sale** until the tests below pass.
 
 ## How players pay
 Players always pay in **Robux**. You get roughly **70%** of the price (Roblox keeps ~30%).
@@ -22,29 +22,29 @@ Icons are in `C:\Users\rosti\Desktop\gamepass-icons` (512x512, made by a Pillow 
 
 | Kind | Name | Description | Price | Icon | ID |
 |---|---|---|---|---|---|
-| Pass | Physgun Colors | Pick any color for your physgun and gravity gun beam. | 99 | `1_physgun_colors.png` | |
-| Pass | More Dupe Slots | Save up to 30 builds instead of 10. | 99 | `2_more_dupe_slots.png` | |
-| Pass | Builder+ | Spawn 100 more props (250 instead of 150). | 149 | `3_builder_plus.png` | |
-| Pass | VIP | Gold VIP name tag, golden physgun and a VIP spawn pad. | 199 | `4_vip.png` | |
-| Pass | NPC Pack | Spawn twice as many NPCs (20 instead of 10). | 149 | `5_npc_pack.png` | |
-| Pass | Sports Car | Unlocks a fast sports car in the Cars tab. | 149 | `6_sports_car.png` | |
-| Product | Tip 25 | Say thanks to the dev! | 25 | `7_tip_25.png` | |
-| Product | Tip 100 | Big thanks to the dev! | 100 | `7_tip_100.png` | |
-| Product | Tip 500 | Legendary thanks to the dev! | 500 | `7_tip_500.png` | |
+| Pass | Physgun Colors | Pick any color for your physgun and gravity gun beam. | 99 | `1_physgun_colors.png` | 2058388684 |
+| Pass | More Dupe Slots | Save up to 30 builds instead of 10. | 99 | `2_more_dupe_slots.png` | 2058670704 |
+| Pass | Builder+ | Spawn 100 more props (250 instead of 150). | 149 | `3_builder_plus.png` | 2058016713 |
+| Pass | VIP | Gold VIP name tag, golden beam, gold trail and a VIP spawn pad. | 199 | `4_vip.png` | 2059576689 |
+| Pass | NPC Pack | Spawn twice as many NPCs (20 instead of 10). | 149 | `5_npc_pack.png` | 2057170769 |
+| Pass | Sports Car | Unlocks a fast sports car in the Cars tab. | 149 | `6_sports_car.png` | 2057668693 |
+| Product | Tip 25 | Say thanks to the dev! | 25 | `7_tip_25.png` | 2057176765 |
+| Product | Tip 100 | Big thanks to the dev! | 100 | `7_tip_100.png` | 2057866690 |
+| Product | Tip 500 | Legendary thanks to the dev! | 500 | `7_tip_500.png` | 2057134730 |
 
-## Build spec (for the next session)
+## Build spec
 
-The user will paste the IDs. Then build, run `scripts/check.sh`, and walk the user through the tests.
+Built. `Shared/PassCatalog.luau` is the single source of truth for keys, IDs, names, descriptions, prices and the
+local icon filenames. `Services/Passes.luau` owns ownership, purchases and tips. The M menu **Store** page lists
+everything with live Buy/Owned state, and the Q menu locks the Sports Car until its pass is owned.
 
-**`Shared/PassCatalog.luau`** (pure data, lune-tested): pass key -> `{ id, name }`, product key -> `{ id, name }`. IDs as numbers.
-
-**`Services/Passes.luau`** (server):
+How it works:
 - On join (and for players already in game at init): `MarketplaceService:UserOwnsGamePassAsync` per pass, in `pcall` with retry and backoff. Store as Player attributes `Pass_<key> = true` (replicated, the client reads them for UI).
 - `MarketplaceService.PromptGamePassPurchaseFinished`: if purchased and the id is ours, set the attribute right away.
 - `Passes.has(player, key): boolean` for the other services.
 - `MarketplaceService.ProcessReceipt` for the tips: look up the product, thank the player (toast + a RostikPro12308 voice line via `NpcSay` with `nil` model), return `PurchaseGranted`. Unknown product: `NotProcessedYet`. Tips grant nothing, so no DataStore is needed.
 - Print `Passes: <key> -> <player>` on every grant.
-- Clean up on `PlayerRemoving` (nothing stored outside attributes).
+- No cleanup needed: ownership lives on the Player's attributes, which go away with the Player.
 
 **Where each perk hooks in** (server decides; never trust the client):
 
@@ -53,16 +53,16 @@ The user will paste the IDs. Then build, run `scripts/check.sh`, and walk the us
 | Physgun Colors | New remote `SetBeamColor(paletteIndex)`: rate limit, typeof, index in `Config.PALETTE`, `Passes.has`. Store on the Player attribute `BeamColor`. `PhysgunService` / `GravityGunService` pass it to `Hold.start` instead of `BEAM_COLOR`. Client: color row in the Q menu, shown only with the pass. |
 | More Dupe Slots | `DupeService`: slot limit per player (`Config.DUPE_SLOTS` vs 30). The codec and labels must handle 30. Check the DataStore size limit. |
 | Builder+ | `Ownership.canSpawn` and `DupeService` cap check: 250 for owners. Watch server physics with several owners. |
-| VIP | Chat tag via `TextChatService.OnIncomingMessage` (client) from the `Pass_vip` attribute; gold beam color (VIP overrides Colors); a VIP spawn pad on each map (`MapCatalog`). |
+| VIP | Gold `VIP` billboard above the head (server, from `Pass_vip`), gold `[VIP]` chat prefix (`VipChat.luau`), gold beam colour (VIP overrides Colors), a gold trail behind the character, and a golden spawn pad on every map (`MapService`). |
 | NPC Pack | `NpcService.canSpawn`: per-player cap 20 for owners (server cap 40 stays). |
-| Sports Car | New `car_sports` in `PropCatalog` with `pass = "sports_car"`. `SpawnService` refuses it without the pass. The Q menu shows it with a lock and a buy button (`MarketplaceService:PromptGamePassPurchase`). |
+| Sports Car | New `car_sports` in `PropCatalog` with `pass = "sports_car"` and `topSpeed = 95`. `SpawnService` refuses it without the pass, and `VehicleService` reads `topSpeed`. The Q menu shows it locked with its price and opens the purchase prompt. |
 
-Add each new remote to `default.project.json`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.
+`SetBeamColor` is in `default.project.json`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.
 
-**Buy buttons:** an M menu "Store" page listing every pass with its icon, price and Buy/Owned state, plus the three tips.
+**Buy buttons:** the M menu **Store** page lists every pass with its uploaded icon, price and Buy/Owned state, plus the three tips.
 
 ## Testing before anything goes on sale
-1. **In Studio:** buying in Studio is a test purchase. Nothing is charged. Check every perk works right away.
+1. **In Studio:** buying in Studio is a test purchase. Nothing is charged. Check every perk works right away. The account that created the passes owns all of them, so on that account the Store shows everything as **Owned**; use a second account to see the Buy buttons.
 2. **Rejoin test:** Studio test purchases don't make you really own the pass. Make a throwaway pass priced **1 Robux**, buy it for real, check the perk after rejoining, then delete it.
 3. **Two accounts:** Team Test or a friend. One owns the pass and one doesn't. Check only the owner gets it.
 4. **Then** put the passes on sale, one at a time. Watch F9 > Server for `Passes:` lines the first time someone buys.

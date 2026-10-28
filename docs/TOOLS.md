@@ -55,6 +55,15 @@ Remotes `GravityPull(prop)` and `GravityPunt(prop, direction)`; the hold reuses 
 ## Guns (`WeaponService.luau`, `Tools/Gun.luau`, `Shared/WeaponCatalog.luau`)
 Every player carries 9mm Pistol (slot 2), SMG and Pulse Rifle (slot 3), Rocket Launcher (slot 5). LMB fires (hold for SMG/AR2), R reloads, ammo panel bottom right. The client sends gun id, camera position and aim; the server checks the gun is equipped, rpm, magazine (Tool `Ammo` attribute) and that the origin is at the head, adds spread and raycasts. Hits push the shooter's own props; players only take damage when both have PvP on (Options in the M menu). Rockets fly server-side (120 studs/s, 3 in flight per player) and explode with an 18-stud radius, same push/damage rules. Gun meshes are Creator Store models in ServerStorage (`AR2`, `Pistol`, `SMG`, `RPG`); `yaw` in the catalog turns a model whose barrel faces the wrong way. Holds: `GunPose.luau` (arm joint rotations per pistol/rifle/launcher) and `GRIPS` in `ToolService` (where the gun sits in the hand).
 
+## Map factory (`tools/add_map.py`)
+One command per Workshop map: `python tools/add_map.py <workshop link or id> [--mood day|sunny|bright|overcast|backrooms|evening]`.
+It finds the subscribed `.gma`, extracts with `gmad`, converts with `tools/bsp_to_json.py`, audits texture alpha,
+opens the review page (`tools/texture_review.py`, 50 images per page, click to reject), uploads only approved
+PNGs through `tools/upload_textures.py`, inserts the `MapCatalog` + `MapLighting` entry and an `docs/ASSETS.md`
+row, asks for the new place id (Split Worlds), copies the Studio import command to the clipboard, and starts
+the local HTTP server with `MapImport.luau`. Rejected textures are never uploaded, so the importer leaves those
+materials flat-coloured. `--skip-upload` stops before Open Cloud; `--no-review` accepts everything.
+
 ## Vehicles (`VehicleService.luau`)
 Spawn menu "Cars" tab: Sedan, Pickup Truck, Buggy. The chassis is the one registered prop; the VehicleSeat, body details and wheels are its children. Front wheels steer on an invisible knuckle turned by a Servo hinge (30 degrees); all wheels are Motor hinges. One Heartbeat drives every occupied seat: wheel speed = throttle * 90 studs/s at the rim, torque = chassis mass * 40 * radius, soft brake (20 %) with no input. A seat drives every wheel whose chassis is in the seat's rigid assembly, so seat + welded props + Wheel-tool wheels make a car.
 

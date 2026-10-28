@@ -15,7 +15,7 @@ Spawnable ragdoll-capable NPCs that feel alive without hurting server performanc
 |---|---|---|
 | Guest | Friendly | Classic Guest: default body colors, black cap built from parts |
 | Noob | Friendly | Yellow head and arms, blue torso, green legs (R6 body colors) |
-| Citizen | Friendly | Original take on a city refugee: blue work shirt, dark pants, built from parts. HL2-inspired only, no Valve assets or lines |
+| Citizen | Friendly | City refugee look, built from parts; currently original art and lines (Valve assets optional on the user's call) |
 | RostikPro12308 (secret) | Friendly | The developer's own avatar, loaded with `Players:GetHumanoidDescriptionFromUserId(Config.DEV_USER_ID)` |
 
 Jane Doe and John Doe are cut. Looks are rebuilt in code; no Catalog or ripped assets.

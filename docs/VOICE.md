@@ -13,7 +13,7 @@ Cast, all voiced by you:
 
 Jane Doe is cut. You're not doing a woman's voice, and there's no need to fake one. John Doe is cut too.
 
-The Citizen is *inspired by* the HL2 citizens, nothing more. Hard rule 1 (`CLAUDE.md`, `docs/ASSETS.md`) still applies: no HL2 model, textures, sounds or voice clips, and no quoting their lines. Every line below is original, and the look is rebuilt from parts with no Lambda logo or other Valve marks.
+The Citizen is *inspired by* the HL2 citizens. Every line below is original and the look is rebuilt from parts. HL2 voice clips or models can be used later if you ask for them; log the source in `docs/ASSETS.md`.
 
 ## The plan for tomorrow
 

@@ -48,6 +48,27 @@ Pure logic = anything that does not need the Roblox engine. Keep data modules fr
 - [ ] Shooting another player does nothing until both turn PvP on (M > Options).
 - [ ] `WeaponFire:FireServer("AR2", Vector3.new(0,1e6,0), Vector3.yAxis)`: nothing. Spam faster than rpm: extra shots ignored.
 
+### Maps and Split Worlds
+- [ ] Join the start place: main menu is over live Flatgrass, `M` reopens it, Start lands on Flatgrass.
+- [ ] Map card for a map with a `placeId`: Start teleports to that place, and the target server spawns on that map. Props from the old place do not come along.
+- [ ] With two players on one server, spawn 1,500 props total (or temporarily lower `Config.SERVER_PROP_CAP`): the next spawn shows the server-limit toast; per-player 150 still applies first.
+
+### Glow-up
+- [ ] Each map's card shows its own sky/effects in the menu; Start tweens into the in-game mood.
+- [ ] Water is see-through glass you can wade through; roughly 20 lights per map cast shadows, the rest do not.
+- [ ] Bigcity sunny, Bangclaw bright, Mallparking overcast, Backrooms yellow haze, Brmovie evening, Flatgrass/Construct/Baseplate daylight.
+- [ ] Two players on different maps see their own lighting.
+
+### Gmod skin and music
+- [ ] Every panel uses Arimo, Derma greys, blue `#2387ed` primary buttons and the yellow tooltip; selected rows are `100,170,220`.
+- [ ] Main menu is white text over the live map, not a boxed list.
+- [ ] With a `MENU_MUSIC_ID` set: the track loops on the menu, fades out on Start/Resume and fades back in on M.
+
+### Map factory (run once on a spare Workshop map)
+- [ ] `python tools/add_map.py <link>` subscribes/finds the `.gma`, converts, opens the review page with 50 per page, and rejected textures stay flat colour in game.
+- [ ] It adds MapCatalog, MapLighting and an ASSETS row; pasting a place id writes `placeId`.
+- [ ] The copied Studio command installs MapImport and builds `Workspace.Maps.<Name>`; Ctrl+S survives a reopen.
+
 ### Step 4 dupes (needs API Services on to test saving)
 - [ ] Weld 3 planks, rope a crate, add a thruster and 2 Wheel-tool wheels. Dupe mode, click one: clipboard shows `Plank +3 (4)`.
 - [ ] Save to slot 1, Load slot 1: same build appears at the crosshair, welds hold, rope, thruster (F) and wheels work. Scale, paint and frozen state kept.

@@ -5,6 +5,7 @@
 -- On join it opens with a short intro: fade from black, the camera eases out, the title and a welcome rise in,
 -- then the links. Dialogs pop open and drag by their title bar. Starting a map fades through black.
 local GuiService = game:GetService("GuiService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,6 +20,7 @@ local Net = require(script.Parent.Parent.Net)
 local Ui = require(script.Parent.Ui)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapCatalog = require(ReplicatedStorage.Shared.MapCatalog)
+local PassCatalog = require(ReplicatedStorage.Shared.PassCatalog)
 
 local make = Ui.make
 
@@ -42,8 +44,14 @@ local KONAMI = {
 	Enum.KeyCode.A,
 }
 local LINK_STAGGER = 0.12 -- seconds between links appearing
+-- Link colours from Gmod's html/css/menu/PageOptions.css: white, #ffa on hover, #ff5 for the open page.
+local LINK_COLOR = Color3.new(1, 1, 1)
+local LINK_HOVER = Color3.fromRGB(255, 255, 170)
+local LINK_ACTIVE = Color3.fromRGB(255, 255, 85)
 local CONTROLS = {
 	{ "WASD", "walk" },
+	{ "Shift / Ctrl", "sprint / crouch" },
+	{ "Space (hold)", "bunny hop" },
 	{ "Arrow keys", "look around (Options to turn off)" },
 	{ "Mouse / trackpad", "look; tap = left click, two-finger tap = right click" },
 	{ "Two-finger scroll", "mouse wheel (switch weapon; physgun push/pull, toolgun mode)" },
@@ -63,8 +71,29 @@ local CONTROLS = {
 local TRACKPAD_TIP = "Trackpad on Linux: turn off 'disable touchpad while typing' so you can look while holding WASD."
 
 local text = Ui.label
-local button = Ui.button
-local list = Ui.list
+
+-- Gmod's HTML pages (html/css/menu/NewGame.css, Menu.css, NavBar.css): white rounded panels, #333 text, blue
+-- gradient primary buttons, #97c5ff selection, #9cf active category, #ddd category rows.
+local WEB = {
+	panel = Color3.new(1, 1, 1),
+	text = Color3.fromRGB(51, 51, 51),
+	label = Color3.fromRGB(102, 102, 102),
+	muted = Color3.fromRGB(153, 153, 153),
+	heading = Color3.fromRGB(68, 68, 68),
+	row = Color3.new(1, 1, 1),
+	rowAlt = Color3.fromRGB(242, 242, 242),
+	selected = Color3.fromRGB(151, 197, 255),
+	category = Color3.fromRGB(221, 221, 221),
+	categoryActive = Color3.fromRGB(153, 204, 255),
+	count = Color3.fromRGB(170, 170, 170),
+	scrollbar = Color3.fromRGB(180, 180, 180),
+	inputBorder = Color3.fromRGB(171, 173, 179),
+	primary = ColorSequence.new(Color3.fromRGB(0, 136, 204), Color3.fromRGB(0, 85, 204)),
+	primaryHover = ColorSequence.new(Color3.fromRGB(34, 170, 238), Color3.fromRGB(34, 119, 238)),
+	primaryBorder = Color3.fromRGB(0, 85, 204),
+	owned = Color3.fromRGB(34, 170, 34),
+	radius = UDim.new(0, 5),
+}
 
 local function tween(instance: Instance, seconds: number, goal: { [string]: any }, style: Enum.EasingStyle?)
 	TweenService
@@ -72,18 +101,159 @@ local function tween(instance: Instance, seconds: number, goal: { [string]: any 
 		:Play()
 end
 
--- Closable, draggable Source dialog right of the menu links.
-local function dialog(title: string, parent: Instance): (Frame, Frame, TextButton)
-	local window = Ui.window(title, parent, true, {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.64, 0.5),
-		Size = UDim2.fromScale(0.5, 0.62),
+local function merge(base: { [string]: any }, extra: { [string]: any }?): { [string]: any }
+	if extra then
+		for key, value in extra do
+			base[key] = value
+		end
+	end
+	return base
+end
+
+-- Dark text for the white pages.
+local function ink(str: string, parent: Instance, props: { [string]: any }?): TextLabel
+	return text(str, parent, merge({ TextColor3 = WEB.text }, props))
+end
+
+-- Tiny flat icons drawn from frames: no ripped art, no asset ids that can go missing. Returns the frames so a
+-- caller can tint them (hover) or fade them (intro). Kinds: play, back, grid, pad, gear, bag, search.
+local function icon(kind: string, parent: GuiObject, color: Color3): { Frame }
+	local box = make("Frame", {
+		Name = "Icon",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromOffset(20, 20),
+		BackgroundTransparency = 1,
+	}, parent)
+	local frames: { Frame } = {}
+	local function bar(w: number, h: number, x: number, y: number, round: number, rot: number?)
+		local shape = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(x, y),
+			Size = UDim2.fromOffset(w, h),
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+			Rotation = rot or 0,
+		}, box)
+		make("UICorner", { CornerRadius = UDim.new(0, round) }, shape)
+		table.insert(frames, shape)
+	end
+	if kind == "play" then
+		bar(3, 8, 6, 6, 1, 40)
+		bar(3, 8, 6, 14, 1, -40)
+	elseif kind == "back" then
+		bar(3, 8, 8, 6, 1, -40)
+		bar(3, 8, 8, 14, 1, 40)
+	elseif kind == "grid" then
+		bar(6, 6, 5, 5, 1)
+		bar(6, 6, 13, 5, 1)
+		bar(6, 6, 5, 13, 1)
+		bar(6, 6, 13, 13, 1)
+	elseif kind == "pad" then
+		bar(16, 9, 10, 11, 4)
+		bar(3, 3, 7, 11, 1)
+		bar(3, 3, 13, 11, 1)
+	elseif kind == "gear" then
+		bar(11, 11, 10, 10, 6)
+		bar(3, 5, 10, 3, 1)
+		bar(3, 5, 10, 17, 1)
+		bar(5, 3, 3, 10, 1)
+		bar(5, 3, 17, 10, 1)
+	elseif kind == "search" then
+		bar(10, 10, 8, 8, 5)
+		bar(3, 7, 14, 14, 1, -45)
+	elseif kind == "bag" then
+		bar(13, 10, 10, 12, 2)
+		bar(2, 4, 10, 5, 1)
+		bar(8, 2, 10, 4, 1)
+	end
+	return frames
+end
+
+-- Browser-default grey button, for the white pages' small controls.
+local function plainButton(label: string, parent: Instance, props: { [string]: any }?): TextButton
+	local b: TextButton = make(
+		"TextButton",
+		merge({
+			Text = label,
+			Font = THEME.font,
+			TextSize = 14,
+			TextColor3 = WEB.text,
+			BackgroundColor3 = Color3.fromRGB(239, 239, 239),
+			BorderSizePixel = 0,
+			AutoButtonColor = false,
+		}, props),
+		parent
+	)
+	make("UICorner", { CornerRadius = UDim.new(0, 3) }, b)
+	make("UIStroke", { Color = Color3.fromRGB(118, 118, 118), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+	b.MouseEnter:Connect(function()
+		b.BackgroundColor3 = Color3.fromRGB(229, 229, 229)
+	end)
+	b.MouseLeave:Connect(function()
+		b.BackgroundColor3 = Color3.fromRGB(239, 239, 239)
+	end)
+	return b
+end
+
+-- Gmod's .btn-primary: blue gradient, darker blue border, white bold text. `props` size and place the fill, which
+-- is the button's parent (the gradient would tint text if it sat on the button itself).
+local function primaryButton(label: string, parent: Instance, props: { [string]: any }?): TextButton
+	local fill: Frame =
+		make("Frame", merge({ BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0 }, props), parent)
+	make("UICorner", { CornerRadius = UDim.new(0, 6) }, fill)
+	make("UIStroke", { Color = WEB.primaryBorder, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, fill)
+	local gradient: UIGradient = make("UIGradient", { Color = WEB.primary, Rotation = 90 }, fill)
+	local b: TextButton = make("TextButton", {
+		Text = label,
+		Font = THEME.bold,
+		TextSize = 14,
+		TextColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Size = UDim2.fromScale(1, 1),
+	}, fill)
+	b.MouseEnter:Connect(function()
+		gradient.Color = WEB.primaryHover
+	end)
+	b.MouseLeave:Connect(function()
+		gradient.Color = WEB.primary
+	end)
+	return b
+end
+
+-- Gmod's .innerpage: a white rounded panel right of the menu links, above the nav bar.
+local function infoPage(name: string, parent: Instance): Frame
+	local frame: Frame = make("Frame", {
+		Name = name,
+		Position = UDim2.fromOffset(320, 16),
+		Size = UDim2.new(1, -336, 1, -32),
+		BackgroundColor3 = WEB.panel,
+		BorderSizePixel = 0,
 		Visible = false,
-	})
-	make("UISizeConstraint", { MinSize = Vector2.new(380, 300), MaxSize = Vector2.new(640, 460) }, window.frame)
-	make("UIScale", {}, window.frame)
-	Ui.draggable(window.frame, window.bar)
-	return window.frame, window.body, window.close :: TextButton
+	}, parent)
+	make("UICorner", { CornerRadius = WEB.radius }, frame)
+	make("UIPadding", {
+		PaddingTop = UDim.new(0, 16),
+		PaddingBottom = UDim.new(0, 16),
+		PaddingLeft = UDim.new(0, 16),
+		PaddingRight = UDim.new(0, 16),
+	}, frame)
+	return frame
+end
+
+local function webList(parent: Instance): ScrollingFrame
+	local frame: ScrollingFrame = make("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = WEB.scrollbar,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+	}, parent)
+	make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }, frame)
+	return frame
 end
 
 -- "name   [-] value [+]" row.
@@ -99,8 +269,8 @@ local function stepper(
 )
 	local row =
 		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = order }, parent)
-	text(name, row, { Size = UDim2.new(1, -150, 1, 0) })
-	local value = text("", row, {
+	ink(name, row, { Size = UDim2.new(1, -150, 1, 0) })
+	local value = ink("", row, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -36, 0, 0),
 		Size = UDim2.fromOffset(72, 34),
@@ -111,7 +281,7 @@ local function stepper(
 		value.Text = string.format("%.1f", get())
 	end
 	for _, direction in { -1, 1 } do
-		button(if direction < 0 then "-" else "+", row, false, {
+		plainButton(if direction < 0 then "-" else "+", row, {
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = if direction < 0 then UDim2.new(1, -110, 0.5, 0) else UDim2.fromScale(1, 0.5),
 			Size = UDim2.fromOffset(30, 26),
@@ -125,6 +295,9 @@ local function stepper(
 end
 
 local function mapAvailable(def: MapCatalog.MapDef): boolean
+	if def.placeId and def.placeId ~= game.PlaceId then
+		return true -- Split Worlds: the map lives in its own place; teleporting there is the start.
+	end
 	if not def.model then
 		return true
 	end
@@ -165,7 +338,7 @@ function MainMenu.init()
 
 	-- Left column: logo, welcome, current map, text links.
 	local left = make("Frame", {
-		Position = UDim2.fromScale(0.06, 0.14),
+		Position = UDim2.fromOffset(86, 50), -- Gmod: 50 px padding + 20 margin + 16 px item padding
 		Size = UDim2.fromOffset(360, 450),
 		BackgroundTransparency = 1,
 	}, root)
@@ -192,7 +365,60 @@ function MainMenu.init()
 		Size = UDim2.new(1, 0, 1, -144),
 		BackgroundTransparency = 1,
 	}, left)
-	make("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, links)
+	make("UIListLayout", { Padding = UDim.new(0, 1), SortOrder = Enum.SortOrder.LayoutOrder }, links)
+
+	-- Gmod's .page: every page sits above the nav bar.
+	local pageArea = make("Frame", { Size = UDim2.new(1, 0, 1, -50), BackgroundTransparency = 1 }, root)
+
+	-- Gmod's #NavBar: a half-black 50 px strip with white 40 px buttons that glow on hover.
+	local navbar = make("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, 0, 0, 50),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.5,
+		BorderSizePixel = 0,
+	}, root)
+	local function navButton(label: string, kind: string, props: { [string]: any }): TextButton
+		local b: TextButton = make(
+			"TextButton",
+			merge({
+				Text = label,
+				Font = THEME.bold,
+				TextSize = 13,
+				TextColor3 = WEB.text,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BorderSizePixel = 0,
+				AutoButtonColor = false,
+				AutomaticSize = Enum.AutomaticSize.X,
+				Size = UDim2.fromOffset(0, 40),
+			}, props),
+			navbar
+		)
+		make("UICorner", { CornerRadius = UDim.new(0, 4) }, b)
+		make("UIPadding", { PaddingLeft = UDim.new(0, 36), PaddingRight = UDim.new(0, 14) }, b)
+		local tint = icon(kind, b, WEB.text)
+		for _, shape in tint do
+			shape.Position += UDim2.fromOffset(12, 0)
+		end
+		local glow = make("UIStroke", {
+			Color = Color3.new(1, 1, 1),
+			Thickness = 4,
+			Transparency = 1,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		}, b)
+		b.MouseEnter:Connect(function()
+			glow.Transparency = 0.5
+		end)
+		b.MouseLeave:Connect(function()
+			glow.Transparency = 1
+		end)
+		return b
+	end
+	local backButton = navButton("Back to Main Menu", "back", { Position = UDim2.fromOffset(5, 5), Visible = false })
+	local gameButton =
+		navButton("Back to Game", "play", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(0.9, 0, 0, 5) })
 
 	-- Black curtain for the intro and map changes. Outside `root`, so it stays up while the menu closes.
 	local curtain: Frame = make("Frame", {
@@ -203,8 +429,41 @@ function MainMenu.init()
 		ZIndex = 50,
 	}, gui)
 
+	-- Menu music: nothing is created until Config.MENU_MUSIC_ID is set.
+	local music: Sound? = nil
+	if Config.MENU_MUSIC_ID ~= "" then
+		music = make("Sound", { Name = "MenuMusic", SoundId = Config.MENU_MUSIC_ID, Looped = true, Volume = 0 }, gui)
+	end
+	local musicToken = 0
+	local function fadeMusic(on: boolean)
+		local sound = music
+		if not sound then
+			return
+		end
+		musicToken += 1
+		local token = musicToken
+		if on and not sound.IsPlaying then
+			sound.Volume = 0
+			sound:Play()
+		end
+		local fade = TweenService:Create(
+			sound,
+			TweenInfo.new(Config.MENU_MUSIC_FADE, Enum.EasingStyle.Sine),
+			{ Volume = if on then Config.MENU_MUSIC_VOLUME else 0 }
+		)
+		if not on then
+			fade.Completed:Once(function()
+				if musicToken == token then
+					sound:Stop()
+				end
+			end)
+		end
+		fade:Play()
+	end
+
 	local dialogs: { [string]: Frame } = {}
 	local linkButtons: { [string]: TextButton } = {}
+	local linkIcons: { [TextButton]: { Frame } } = {}
 	local allLinks: { TextButton } = {}
 	local openDialog: string? = nil
 	local function showDialog(name: string?)
@@ -219,29 +478,48 @@ function MainMenu.init()
 			end
 		end
 		for linkName, link in linkButtons do
-			link.TextColor3 = if linkName == name then THEME.accentText else THEME.text
+			link.TextColor3 = if linkName == name then LINK_ACTIVE else LINK_COLOR
 		end
+		-- Gmod's New Game page replaces the menu links; the other pages sit beside them.
+		left.Visible = name ~= "Start Game"
+		backButton.Visible = name ~= nil
 	end
-	local function link(order: number, label: string, onClick: () -> ()): TextButton
+	-- Gmod main menu: plain white text, no boxes, a soft shadow so it reads over any map. Each link gets a
+	-- small flat icon so the column reads at a glance.
+	local function link(order: number, label: string, kind: string, onClick: () -> ()): TextButton
+		local row = make("Frame", {
+			Size = UDim2.new(1, 0, 0, 30),
+			BackgroundTransparency = 1,
+			LayoutOrder = order,
+		}, links)
+		local tint = icon(kind, row, LINK_COLOR)
 		local b: TextButton = make("TextButton", {
 			Text = label,
-			Font = THEME.semibold,
-			TextSize = 28,
-			TextColor3 = THEME.text,
+			Font = THEME.bold,
+			TextSize = 23,
+			TextColor3 = LINK_COLOR,
+			TextStrokeTransparency = 0.6,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
-			Size = UDim2.new(1, 0, 0, 36),
-			LayoutOrder = order,
-		}, links)
+			Position = UDim2.fromOffset(30, 0),
+			Size = UDim2.new(1, -30, 1, 0),
+		}, row)
 		b.MouseEnter:Connect(function()
-			b.TextColor3 = THEME.accentText
+			b.TextColor3 = LINK_HOVER
+			for _, shape in tint do
+				shape.BackgroundColor3 = LINK_HOVER
+			end
 		end)
 		b.MouseLeave:Connect(function()
-			b.TextColor3 = if linkButtons[label] and openDialog == label then THEME.accentText else THEME.text
+			b.TextColor3 = if linkButtons[label] and openDialog == label then LINK_ACTIVE else LINK_COLOR
+			for _, shape in tint do
+				shape.BackgroundColor3 = LINK_COLOR
+			end
 		end)
 		b.Activated:Connect(onClick)
 		table.insert(allLinks, b)
+		linkIcons[b] = tint
 		return b
 	end
 
@@ -304,53 +582,154 @@ function MainMenu.init()
 		end
 	end
 
-	-- Start Game: map list on the left, details and Start on the right.
-	local playFrame, playBody, playClose = dialog("Start Game", root)
+	-- Start Game: Gmod's New Game page. A white map list (category, search, 128 px tiles) on the left, a white
+	-- panel with the map details and the big blue button on the right.
+	local playFrame = make(
+		"Frame",
+		{ Name = "Start Game", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false },
+		pageArea
+	)
 	dialogs["Start Game"] = playFrame
-	local mapList = list(playBody, { Size = UDim2.new(0.42, 0, 1, -44) })
-	local details = make("Frame", {
-		Position = UDim2.new(0.42, 14, 0, 0),
-		Size = UDim2.new(0.58, -14, 1, -44),
-		BackgroundTransparency = 1,
-	}, playBody)
-	local detailName = text("", details, { Size = UDim2.new(1, 0, 0, 30), Font = THEME.bold, TextSize = 28 })
-	local detailHere = text("", details, {
-		Position = UDim2.fromOffset(0, 32),
-		Size = UDim2.new(1, 0, 0, 18),
-		TextSize = 15,
-		TextColor3 = THEME.accentText,
+	local mapPanel = make("Frame", {
+		Position = UDim2.fromOffset(16, 16),
+		Size = UDim2.new(1, -272, 1, -32),
+		BackgroundColor3 = WEB.panel,
+		BorderSizePixel = 0,
+	}, playFrame)
+	make("UICorner", { CornerRadius = WEB.radius }, mapPanel)
+	local category = make("Frame", {
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 0, 26),
+		BackgroundColor3 = WEB.categoryActive,
+		BorderSizePixel = 0,
+	}, mapPanel)
+	make("UICorner", { CornerRadius = UDim.new(0, 3) }, category)
+	ink("Sandbox", category, {
+		Position = UDim2.fromOffset(6, 0),
+		Size = UDim2.new(1, -38, 1, 0),
+		Font = THEME.bold,
+		TextSize = 12,
 	})
-	local detailBlurb = text("", details, {
-		Position = UDim2.fromOffset(0, 58),
-		Size = UDim2.new(1, 0, 1, -58),
-		TextColor3 = THEME.muted,
+	local categoryCount = ink("", category, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -5, 0.5, 0),
+		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromOffset(0, 18),
+		BackgroundTransparency = 0,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		TextColor3 = WEB.count,
+		Font = THEME.bold,
+		TextSize = 11,
+	})
+	make("UICorner", { CornerRadius = UDim.new(0, 3) }, categoryCount)
+	make("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, categoryCount)
+	local search: TextBox = make("TextBox", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 10, 1, -10),
+		Size = UDim2.new(1, -20, 0, 26),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Text = "",
+		PlaceholderText = "Search...",
+		PlaceholderColor3 = WEB.muted,
+		TextColor3 = WEB.text,
+		Font = THEME.font,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ClearTextOnFocus = false,
+	}, mapPanel)
+	make("UICorner", { CornerRadius = UDim.new(0, 3) }, search)
+	make("UIStroke", { Color = WEB.inputBorder, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, search)
+	make("UIPadding", { PaddingLeft = UDim.new(0, 6) }, search)
+
+	-- Map list: one row per map (icon tile, name, blurb). Gmod's New Game page, without the 128 px grey "?"
+	-- placeholder grid that made the page look unfinished.
+	local mapScroll: ScrollingFrame = make("ScrollingFrame", {
+		Position = UDim2.fromOffset(10, 44),
+		Size = UDim2.new(1, -20, 1, -88),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = WEB.scrollbar,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+	}, mapPanel)
+	make("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, mapScroll)
+
+	local settingsPanel = make("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 16),
+		Size = UDim2.new(0, 226, 1, -32),
+		BackgroundColor3 = WEB.panel,
+		BorderSizePixel = 0,
+	}, playFrame)
+	make("UICorner", { CornerRadius = WEB.radius }, settingsPanel)
+	local details = make(
+		"Frame",
+		{ Position = UDim2.fromOffset(10, 10), Size = UDim2.new(1, -20, 1, -90), BackgroundTransparency = 1 },
+		settingsPanel
+	)
+	local detailName = ink("", details, { Size = UDim2.new(1, 0, 0, 28), Font = THEME.bold, TextSize = 22 })
+	local detailHere = ink("", details, {
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 0, 16),
+		TextSize = 12,
+		Font = THEME.bold,
+		TextColor3 = WEB.primaryBorder,
+	})
+	local detailBlurb = ink("", details, {
+		Position = UDim2.fromOffset(0, 52),
+		Size = UDim2.new(1, 0, 1, -52),
+		TextSize = 13,
+		TextColor3 = WEB.label,
 		TextWrapped = true,
 		TextYAlignment = Enum.TextYAlignment.Top,
 	})
-	local start = button("Start", playBody, true, {
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.fromScale(1, 1),
-		Size = UDim2.fromOffset(120, 32),
+	local start = primaryButton("Start", settingsPanel, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.new(1, -36, 0, 44),
 	})
-	local cancel = button("Cancel", playBody, false, {
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -128, 1, 0),
-		Size = UDim2.fromOffset(100, 32),
-	})
+	start.TextSize = 20
+	for _, shape in icon("play", start, Color3.new(1, 1, 1)) do
+		shape.Position += UDim2.fromOffset(14, 0)
+	end
 
-	local rows: { [string]: TextButton } = {}
-	local selected = MapCatalog.DEFAULT
 	local function rowColor(order: number): Color3
-		return if order % 2 == 1 then THEME.row else THEME.rowAlt
+		return if order % 2 == 1 then WEB.row else WEB.rowAlt
+	end
+
+	local MAP_TINTS = {
+		{ 122, 156, 196 },
+		{ 122, 166, 138 },
+		{ 156, 132, 180 },
+		{ 190, 152, 112 },
+		{ 112, 158, 180 },
+		{ 172, 138, 130 },
+		{ 182, 172, 122 },
+		{ 140, 142, 164 },
+	}
+	local tiles: { [string]: TextButton } = {}
+	local tileBase: { [string]: Color3 } = {}
+	local selected = MapCatalog.DEFAULT
+	local function refreshTiles()
+		local query = string.lower(search.Text)
+		local shown = 0
+		for _, map in MapCatalog.list do
+			local row = tiles[map.id]
+			local visible = mapAvailable(map)
+				and (query == "" or string.find(string.lower(map.name), query, 1, true) ~= nil)
+			row.Visible = visible
+			row.BackgroundColor3 = if map.id == selected then WEB.selected else tileBase[map.id]
+			if visible then
+				shown += 1
+			end
+		end
+		categoryCount.Text = tostring(shown)
 	end
 	local function selectMap(id: string)
 		selected = id
 		local def = MapCatalog.byId[id]
-		for order, map in MapCatalog.list do
-			local row = rows[map.id]
-			row.BackgroundColor3 = if map.id == id then THEME.accent else rowColor(order)
-			row.Visible = mapAvailable(map)
-		end
 		local current = player:GetAttribute(Config.MAP_ATTRIBUTE)
 		detailName.Text = def.name
 		detailHere.Text = if current == id then "You are here" else ""
@@ -358,39 +737,72 @@ function MainMenu.init()
 		start.Text = if current == id then "Respawn here" else "Start"
 		orbitDef = def
 		MapLighting.preview(id)
+		refreshTiles()
 	end
 	for order, def in MapCatalog.list do
 		local row: TextButton = make("TextButton", {
-			Text = def.name,
-			Font = THEME.font,
-			TextSize = 18,
-			TextColor3 = THEME.text,
-			TextXAlignment = Enum.TextXAlignment.Left,
+			Name = def.name,
+			Text = "",
+			AutoButtonColor = false,
 			BackgroundColor3 = rowColor(order),
 			BorderSizePixel = 0,
-			AutoButtonColor = false,
-			Size = UDim2.new(1, 0, 0, 32),
 			LayoutOrder = order,
-		}, mapList)
-		make("UIPadding", { PaddingLeft = UDim.new(0, 10) }, row)
+			Size = UDim2.new(1, 0, 0, 56),
+		}, mapScroll)
+		make("UICorner", { CornerRadius = UDim.new(0, 3) }, row)
+		local tint = MAP_TINTS[(order - 1) % #MAP_TINTS + 1]
+		local thumb = make("Frame", {
+			Position = UDim2.fromOffset(6, 6),
+			Size = UDim2.fromOffset(44, 44),
+			BackgroundColor3 = Color3.fromRGB(tint[1], tint[2], tint[3]),
+			BorderSizePixel = 0,
+		}, row)
+		make("UICorner", { CornerRadius = UDim.new(0, 3) }, thumb)
+		ink(string.upper(string.sub(def.name, 1, 1)), thumb, {
+			Size = UDim2.fromScale(1, 1),
+			Font = THEME.bold,
+			TextSize = 24,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextXAlignment = Enum.TextXAlignment.Center,
+		})
+		ink(def.name, row, {
+			Position = UDim2.fromOffset(58, 7),
+			Size = UDim2.new(1, -68, 0, 20),
+			Font = THEME.bold,
+			TextSize = 16,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		ink(def.blurb, row, {
+			Position = UDim2.fromOffset(58, 27),
+			Size = UDim2.new(1, -68, 0, 22),
+			TextSize = 12,
+			TextColor3 = WEB.label,
+			TextWrapped = true,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		})
 		row.MouseEnter:Connect(function()
 			if selected ~= def.id then
-				row.BackgroundColor3 = THEME.rowHover
+				row.BackgroundColor3 = WEB.category
 			end
 		end)
 		row.MouseLeave:Connect(function()
-			row.BackgroundColor3 = if selected == def.id then THEME.accent else rowColor(order)
+			if selected ~= def.id then
+				row.BackgroundColor3 = tileBase[def.id]
+			end
 		end)
 		row.Activated:Connect(function()
 			selectMap(def.id)
 		end)
-		rows[def.id] = row
+		tiles[def.id] = row
+		tileBase[def.id] = rowColor(order)
 	end
+	search:GetPropertyChangedSignal("Text"):Connect(refreshTiles)
 
-	-- Controls: Source list view, alternating rows.
-	local controlsFrame, controlsBody, controlsClose = dialog("Controls", root)
+	-- Controls: alternating rows on a white page.
+	local controlsFrame = infoPage("Controls", pageArea)
 	dialogs.Controls = controlsFrame
-	local controlsList = list(controlsBody)
+	local controlsList = webList(controlsFrame)
 	for order, entry in CONTROLS do
 		local row = make("Frame", {
 			Size = UDim2.new(1, 0, 0, 26),
@@ -399,19 +811,19 @@ function MainMenu.init()
 			LayoutOrder = order,
 		}, controlsList)
 		make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, row)
-		text(entry[1], row, { Size = UDim2.fromScale(0.32, 1), Font = THEME.semibold, TextColor3 = THEME.accentText })
-		text(entry[2], row, {
+		ink(entry[1], row, { Size = UDim2.fromScale(0.32, 1), Font = THEME.bold, TextColor3 = WEB.primaryBorder })
+		ink(entry[2], row, {
 			Position = UDim2.fromScale(0.32, 0),
 			Size = UDim2.fromScale(0.68, 1),
 			TextSize = 16,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		})
 	end
-	local tip = text(TRACKPAD_TIP, controlsList, {
+	local tip = ink(TRACKPAD_TIP, controlsList, {
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextSize = 15,
-		TextColor3 = THEME.muted,
+		TextColor3 = WEB.muted,
 		TextWrapped = true,
 		LayoutOrder = #CONTROLS + 1,
 	})
@@ -422,8 +834,8 @@ function MainMenu.init()
 	)
 
 	-- Options
-	local optionsFrame, optionsBody, optionsClose = dialog("Options", root)
-	dialogs.Options = optionsFrame
+	local optionsBody = infoPage("Options", pageArea)
+	dialogs.Options = optionsBody
 	make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, optionsBody)
 	stepper(optionsBody, 1, "Mouse / trackpad sensitivity", function()
 		return UserInputService.MouseDeltaSensitivity
@@ -433,8 +845,8 @@ function MainMenu.init()
 	stepper(optionsBody, 2, "Field of view", FirstPerson.fieldOfView, FirstPerson.setFieldOfView, 5, 60, 110)
 	local lookRow =
 		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 3 }, optionsBody)
-	text("Arrow keys look around", lookRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local lookToggle = button("", lookRow, false, {
+	ink("Arrow keys look around", lookRow, { Size = UDim2.new(1, -150, 1, 0) })
+	local lookToggle = plainButton("", lookRow, {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.fromScale(1, 0.5),
 		Size = UDim2.fromOffset(140, 26),
@@ -451,8 +863,8 @@ function MainMenu.init()
 	local pvpRemote = Net.event("SetPvp")
 	local pvpRow =
 		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 5 }, optionsBody)
-	text("PvP (guns hurt players who also have it on)", pvpRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local pvpToggle = button("", pvpRow, false, {
+	ink("PvP (guns hurt players who also have it on)", pvpRow, { Size = UDim2.new(1, -150, 1, 0) })
+	local pvpToggle = plainButton("", pvpRow, {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.fromScale(1, 0.5),
 		Size = UDim2.fromOffset(140, 26),
@@ -463,8 +875,116 @@ function MainMenu.init()
 	pvpToggle.Activated:Connect(function()
 		pvpRemote:FireServer(player:GetAttribute(Config.PVP_ATTRIBUTE) ~= true)
 	end)
+	Ui.tooltip(pvpToggle, "Guns only hurt players who also have PvP on")
 	player:GetAttributeChangedSignal(Config.PVP_ATTRIBUTE):Connect(refreshPvp)
 	refreshPvp()
+
+	-- Store: every pass and tip, with the owned state live from the Player attributes.
+	local storeFrame = infoPage("Store", pageArea)
+	dialogs.Store = storeFrame
+	local storeList = webList(storeFrame)
+	local storeOrder = 0
+	local function storeHeading(headingText: string)
+		storeOrder += 1
+		local heading = ink(headingText, storeList, {
+			Size = UDim2.new(1, 0, 0, 36),
+			TextSize = 26,
+			TextColor3 = WEB.heading,
+			LayoutOrder = storeOrder,
+		})
+		make("UIPadding", { PaddingLeft = UDim.new(0, 5) }, heading)
+	end
+	local function storeRow(item: PassCatalog.Item)
+		storeOrder += 1
+		local row = make("Frame", {
+			Size = UDim2.new(1, 0, 0, 60),
+			BackgroundColor3 = rowColor(storeOrder),
+			BorderSizePixel = 0,
+			LayoutOrder = storeOrder,
+		}, storeList)
+		make("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, row)
+		local itemIcon: GuiObject
+		if item.assetId then
+			itemIcon = make("ImageLabel", {
+				Position = UDim2.fromOffset(0, 8),
+				Size = UDim2.fromOffset(44, 44),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Image = `rbxassetid://{item.assetId}`,
+				ScaleType = Enum.ScaleType.Fit,
+			}, row)
+		else
+			itemIcon = make("Frame", {
+				Position = UDim2.fromOffset(0, 8),
+				Size = UDim2.fromOffset(44, 44),
+				BackgroundColor3 = Color3.fromRGB(item.tint[1], item.tint[2], item.tint[3]),
+				BorderSizePixel = 0,
+			}, row)
+			text(string.sub(item.name, 1, 1), itemIcon, {
+				Size = UDim2.fromScale(1, 1),
+				Font = THEME.bold,
+				TextSize = 20,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextColor3 = Color3.new(0, 0, 0),
+				TextTransparency = 0.25,
+			})
+		end
+		make("UICorner", { CornerRadius = UDim.new(0, 4) }, itemIcon)
+		ink(item.name, row, {
+			Position = UDim2.fromOffset(54, 6),
+			Size = UDim2.new(1, -160, 0, 20),
+			Font = THEME.bold,
+			TextSize = 17,
+		})
+		ink(item.description, row, {
+			Position = UDim2.fromOffset(54, 26),
+			Size = UDim2.new(1, -160, 0, 28),
+			TextSize = 14,
+			TextColor3 = WEB.label,
+			TextWrapped = true,
+			TextYAlignment = Enum.TextYAlignment.Top,
+		})
+		local buy = primaryButton(`R${item.price}`, row, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromOffset(88, 30),
+		})
+		local buyFill = buy.Parent :: Frame
+		local ownedLabel = ink("Owned", row, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -4, 0.5, 0),
+			Size = UDim2.fromOffset(88, 30),
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Font = THEME.bold,
+			TextColor3 = WEB.owned,
+			Visible = false,
+		})
+		if item.kind == "pass" then
+			local attribute = PassCatalog.attribute(item.key)
+			local function refresh()
+				local owned = player:GetAttribute(attribute) == true
+				buyFill.Visible = not owned
+				ownedLabel.Visible = owned
+			end
+			player:GetAttributeChangedSignal(attribute):Connect(refresh)
+			refresh()
+			buy.Activated:Connect(function()
+				MarketplaceService:PromptGamePassPurchase(player, item.id)
+			end)
+		else
+			buy.Activated:Connect(function()
+				MarketplaceService:PromptProductPurchase(player, item.id)
+			end)
+		end
+	end
+	storeHeading("Passes")
+	for _, item in PassCatalog.passes do
+		storeRow(item)
+	end
+	storeHeading("Tips")
+	for _, item in PassCatalog.products do
+		storeRow(item)
+	end
 
 	local function refreshCurrent()
 		local def = MapCatalog.byId[player:GetAttribute(Config.MAP_ATTRIBUTE) :: string]
@@ -475,31 +995,39 @@ function MainMenu.init()
 	local function setOpen(open: boolean)
 		root.Visible = open
 		hideOtherGuis(open)
+		fadeMusic(open)
 		if open then
 			refreshCurrent()
 			local current = player:GetAttribute(Config.MAP_ATTRIBUTE)
 			selectMap(if typeof(current) == "string" and MapCatalog.byId[current] then current else MapCatalog.DEFAULT)
 			startOrbit()
+			-- A gamepad needs something focused or it can't move through the menu.
+			if UserInputService.GamepadEnabled and allLinks[1] then
+				GuiService.SelectedObject = allLinks[1]
+			end
 		else
 			showDialog(nil)
 			stopOrbit()
+			GuiService.SelectedObject = nil
 			MapLighting.preview(nil)
 		end
 	end
 
-	link(1, "Resume Game", function()
+	link(1, "Resume Game", "play", function()
 		setOpen(false)
 	end)
-	for order, name in { "Start Game", "Controls", "Options" } do
-		linkButtons[name] = link(order + 1, name, function()
+	for order, entry in { { "Start Game", "grid" }, { "Controls", "pad" }, { "Options", "gear" }, { "Store", "bag" } } do
+		local name = entry[1]
+		linkButtons[name] = link(order + 1, name, entry[2], function()
 			showDialog(if openDialog == name then nil else name)
 		end)
 	end
-	for _, close in { playClose, controlsClose, optionsClose, cancel } do
-		close.Activated:Connect(function()
-			showDialog(nil)
-		end)
-	end
+	backButton.Activated:Connect(function()
+		showDialog(nil)
+	end)
+	gameButton.Activated:Connect(function()
+		setOpen(false)
+	end)
 	-- Fade through black so the jump to another map isn't a hard cut.
 	local starting = false
 	start.Activated:Connect(function()
@@ -507,6 +1035,7 @@ function MainMenu.init()
 			return
 		end
 		starting = true
+		fadeMusic(false)
 		tween(curtain, 0.4, { BackgroundTransparency = 0 }, Enum.EasingStyle.Sine)
 		task.delay(0.45, function()
 			pickRemote:FireServer(selected)
@@ -559,6 +1088,12 @@ function MainMenu.init()
 	end
 	for _, b in allLinks do
 		b.TextTransparency = 1
+		local shapes = linkIcons[b]
+		if shapes then
+			for _, shape in shapes do
+				shape.BackgroundTransparency = 1
+			end
+		end
 	end
 	local titleHome = title.Position
 	local welcomeHome = welcome.Position
@@ -584,13 +1119,14 @@ function MainMenu.init()
 		task.delay(2.5 + i * LINK_STAGGER, function()
 			tween(b, 0.6, { TextTransparency = 0 })
 			tween(padding, 0.6, { PaddingLeft = UDim.new(0, 0) })
+			local shapes = linkIcons[b]
+			if shapes then
+				for _, shape in shapes do
+					tween(shape, 0.6, { BackgroundTransparency = 0 })
+				end
+			end
 		end)
 	end
-	task.delay(2.6 + #allLinks * LINK_STAGGER, function()
-		if root.Visible and openDialog == nil then
-			showDialog("Start Game")
-		end
-	end)
 end
 
 return MainMenu

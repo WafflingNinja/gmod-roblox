@@ -10,9 +10,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local DupeCodec = require(ReplicatedStorage.Shared.DupeCodec)
+local PassCatalog = require(ReplicatedStorage.Shared.PassCatalog)
 local PropCatalog = require(ReplicatedStorage.Shared.PropCatalog)
 local Constraints = require(script.Parent.Constraints)
 local Ownership = require(script.Parent.Ownership)
+local Passes = require(script.Parent.Passes)
 local PropBuilder = require(script.Parent.PropBuilder)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
@@ -38,7 +40,7 @@ local RULES: DupeCodec.Rules = {
 	wheels = Config.WHEEL_PROPS,
 	maxParts = Config.DUPE_PART_CAP,
 	maxLinks = Config.CONSTRAINT_CAP,
-	slots = Config.DUPE_SLOTS,
+	slots = Config.VIP_DUPE_SLOTS, -- load every saved slot; the per-player limit gates access
 	scaleMin = Config.SCALE_MIN,
 	scaleMax = Config.SCALE_MAX,
 	ropeMax = Config.ROPE_MAX_LENGTH,
@@ -82,18 +84,25 @@ local function toVector(t: { number }): Vector3
 	return Vector3.new(t[1], t[2], t[3])
 end
 
-local function slotOf(raw: unknown): number?
-	if typeof(raw) == "number" and raw % 1 == 0 and raw >= 1 and raw <= Config.DUPE_SLOTS then
+local function slotLimit(player: Player): number
+	return if Passes.has(player, "more_dupe_slots") then Config.VIP_DUPE_SLOTS else Config.DUPE_SLOTS
+end
+
+local function slotOf(raw: unknown, limit: number): number?
+	if typeof(raw) == "number" and raw % 1 == 0 and raw >= 1 and raw <= limit then
 		return raw
 	end
 	return nil
 end
 
--- Clipboard name and one label per slot ("" = empty).
+-- Clipboard name and one label per available slot ("" = empty).
 local function sendState(player: Player, session: Session)
-	local labels: { string } = table.create(Config.DUPE_SLOTS, "")
+	local limit = slotLimit(player)
+	local labels: { string } = table.create(limit, "")
 	for slot, dupe in session.slots do
-		labels[slot] = `{dupe.name} ({#dupe.parts})`
+		if slot <= limit then
+			labels[slot] = `{dupe.name} ({#dupe.parts})`
+		end
 	end
 	local clip = session.clipboard
 	stateRemote:FireClient(player, if clip then `{clip.name} ({#clip.parts})` else "", labels)
@@ -355,8 +364,16 @@ local function fits(player: Player, dupe: DupeCodec.Dupe): string?
 			thrusters += 1
 		end
 	end
-	if Ownership.count(player) + #dupe.parts > Config.PROP_CAP then
+	for _, part in dupe.parts do
+		local def = PropCatalog.byId[part.id]
+		if def.pass and not Passes.has(player, def.pass) then
+			return "That build contains a pass vehicle."
+		end
+	end
+	if Ownership.count(player) + #dupe.parts > Ownership.cap(player) then
 		return `Not enough prop slots ({#dupe.parts} needed).`
+	elseif Ownership.serverCount() + #dupe.parts > Config.SERVER_PROP_CAP then
+		return "Server prop limit reached. Try again in a moment."
 	elseif Constraints.count(player) + #dupe.links > Config.CONSTRAINT_CAP then
 		return `Not enough constraint slots ({#dupe.links} needed).`
 	elseif ToolgunService.thrusterCount(player) + thrusters > Config.THRUSTER_CAP then
@@ -369,6 +386,12 @@ local function onPlayerAdded(player: Player)
 	local session: Session =
 		{ loaded = false, slots = {}, clipboard = nil, dirty = false, scheduled = false, writing = false }
 	sessions[player] = session
+	-- Buying More Dupe Slots mid-session unlocks the extra rows immediately.
+	player:GetAttributeChangedSignal(PassCatalog.attribute("more_dupe_slots")):Connect(function()
+		if sessions[player] == session then
+			sendState(player, session)
+		end
+	end)
 	task.spawn(load, player, session)
 end
 
@@ -396,7 +419,7 @@ function DupeService.init()
 		if not storeLimiter:consume(player, 1) then
 			return
 		end
-		local slot = slotOf(rawSlot)
+		local slot = slotOf(rawSlot, slotLimit(player))
 		local session = sessions[player]
 		local clip = session and session.clipboard
 		if not slot or not session or not clip then
@@ -410,7 +433,7 @@ function DupeService.init()
 		if not storeLimiter:consume(player, 1) then
 			return
 		end
-		local slot = slotOf(rawSlot)
+		local slot = slotOf(rawSlot, slotLimit(player))
 		local session = sessions[player]
 		if not slot or not session or not session.slots[slot] then
 			return
@@ -423,7 +446,7 @@ function DupeService.init()
 		if not loadLimiter:consume(player, 1) then
 			return
 		end
-		local slot = slotOf(rawSlot)
+		local slot = slotOf(rawSlot, slotLimit(player))
 		if not slot or typeof(position) ~= "Vector3" or not Validate.isFiniteVector(position) then
 			return
 		end

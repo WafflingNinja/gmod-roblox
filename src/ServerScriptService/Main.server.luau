@@ -1,5 +1,6 @@
 --!strict
 local services = script.Parent.Services
+require(services.Passes).init()
 require(services.SpawnService).init()
 require(services.ToolService).init()
 require(services.Hold).init()
@@ -14,6 +15,7 @@ require(services.RagdollService).init()
 require(services.DupeService).init()
 require(services.FeedbackService).init()
 require(services.MapService).init()
+require(services.DoorService).init()
 require(services.WeaponService).init()
 require(services.NpcService).init()
 require(services.FlashlightService).init()

@@ -13,13 +13,18 @@ local Sfx = require(script.Parent.Parent.Sfx)
 local Ui = require(script.Parent.Ui)
 local Config = require(ReplicatedStorage.Shared.Config)
 
--- Keeps the HL2 look; every other panel uses the Source skin.
-local THEME = Ui.CLASSIC
+local THEME = Ui.THEME
 local make = Ui.make
 
+-- Colours from Gmod's resource/ClientScheme.res: yellow text on square black boxes (alpha 70 empty, 150 selected).
+local HUD_YELLOW = Color3.fromRGB(255, 220, 0)
+local HUD_BOX = Color3.new(0, 0, 0)
+local BOX_EMPTY_TRANSPARENCY = 1 - 70 / 255
+local BOX_SELECTED_TRANSPARENCY = 1 - 150 / 255
+
 local function label(text: string, parent: Instance, props: { [string]: any }): TextLabel
-	props.Font = props.Font or THEME.font
-	props.TextColor3 = props.TextColor3 or THEME.text
+	props.Font = props.Font or THEME.bold
+	props.TextColor3 = props.TextColor3 or HUD_YELLOW
 	props.TextSize = props.TextSize or 16
 	return Ui.label(text, parent, props)
 end
@@ -138,15 +143,15 @@ function WeaponSelect.init()
 			end
 			local header = make("Frame", {
 				Size = UDim2.new(1, 0, 0, 26),
-				BackgroundColor3 = THEME.panel,
-				BackgroundTransparency = 0.2,
+				BackgroundColor3 = HUD_BOX,
+				BackgroundTransparency = if filled then BOX_SELECTED_TRANSPARENCY else BOX_EMPTY_TRANSPARENCY,
+				BorderSizePixel = 0,
 			}, column)
-			make("UICorner", { CornerRadius = UDim.new(0, 4) }, header)
 			label(tostring(slot), header, {
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.new(1, -8, 1, 0),
 				TextSize = 15,
-				TextColor3 = if filled then THEME.accent else THEME.muted,
+				TextTransparency = if filled then 0 else 0.5,
 			})
 
 			if slot == activeSlot then
@@ -158,18 +163,17 @@ function WeaponSelect.init()
 					local entry = make("Frame", {
 						LayoutOrder = i,
 						Size = UDim2.new(1, 0, 0, if isSelected then 44 else 30),
-						BackgroundColor3 = if isSelected then THEME.row else THEME.panel,
-						BackgroundTransparency = 0.15,
+						BackgroundColor3 = HUD_BOX,
+						BackgroundTransparency = if isSelected
+							then BOX_SELECTED_TRANSPARENCY
+							else BOX_EMPTY_TRANSPARENCY,
+						BorderSizePixel = 0,
 					}, column)
-					make("UICorner", { CornerRadius = UDim.new(0, 4) }, entry)
-					if isSelected then
-						make("UIStroke", { Color = THEME.accent, Thickness = 2 }, entry)
-					end
 					label(labelOf(tool), entry, {
 						Position = UDim2.fromOffset(10, 0),
 						Size = UDim2.new(1, -20, 1, 0),
 						TextSize = if isSelected then 17 else 14,
-						TextColor3 = if isSelected then THEME.accent else THEME.text,
+						TextTransparency = if isSelected then 0 else 0.25,
 						TextTruncate = Enum.TextTruncate.AtEnd,
 					})
 				end

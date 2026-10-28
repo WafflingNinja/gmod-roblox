@@ -6,9 +6,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Passes = require(script.Parent.Passes)
 
 local owned: { [Player]: { [Instance]: boolean } } = {}
 local counts: { [Player]: number } = {}
+local serverTotal = 0
 
 local Ownership = {}
 
@@ -16,8 +18,17 @@ function Ownership.count(player: Player): number
 	return counts[player] or 0
 end
 
+function Ownership.serverCount(): number
+	return serverTotal
+end
+
+-- Builder+ raises the per-player prop cap; everything else keeps the base cap.
+function Ownership.cap(player: Player): number
+	return if Passes.has(player, "builder_plus") then Config.VIP_PROP_CAP else Config.PROP_CAP
+end
+
 function Ownership.canSpawn(player: Player): boolean
-	return Ownership.count(player) < Config.PROP_CAP
+	return Ownership.count(player) < Ownership.cap(player) and serverTotal < Config.SERVER_PROP_CAP
 end
 
 local function release(player: Player, prop: Instance)
@@ -28,6 +39,7 @@ local function release(player: Player, prop: Instance)
 	set[prop] = nil
 	local n = math.max(0, Ownership.count(player) - 1)
 	counts[player] = n
+	serverTotal = math.max(0, serverTotal - 1)
 	player:SetAttribute(Config.COUNT_ATTRIBUTE, n)
 end
 
@@ -41,6 +53,7 @@ function Ownership.claim(player: Player, prop: Instance)
 	set[prop] = true
 	local n = Ownership.count(player) + 1
 	counts[player] = n
+	serverTotal += 1
 	player:SetAttribute(Config.COUNT_ATTRIBUTE, n)
 	prop:SetAttribute(Config.OWNER_ATTRIBUTE, player.UserId)
 	CollectionService:AddTag(prop, Config.PROP_TAG)

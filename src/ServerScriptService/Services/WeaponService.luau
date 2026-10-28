@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WeaponCatalog = require(ReplicatedStorage.Shared.WeaponCatalog)
 local GravityGunService = require(script.Parent.GravityGunService)
 local Ownership = require(script.Parent.Ownership)
+local RagdollService = require(script.Parent.RagdollService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
 local Validate = require(script.Parent.Validate)
@@ -85,8 +86,8 @@ local function push(shooter: Player, instance: Instance, direction: Vector3, spe
 	GravityGunService.kick(prop, direction.Unit * math.min(speed, MAX_IMPULSE_SPEED))
 end
 
--- `shooter` nil = an NPC fired; it hurts players who have PvP on.
-local function hurt(shooter: Player?, instance: Instance, amount: number)
+-- `shooter` nil = an NPC fired; it hurts players who have PvP on. `direction` is where the hit pushes.
+local function hurt(shooter: Player?, instance: Instance, amount: number, direction: Vector3)
 	local character = instance:FindFirstAncestorOfClass("Model")
 	local victim = character and Players:GetPlayerFromCharacter(character)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -99,6 +100,9 @@ local function hurt(shooter: Player?, instance: Instance, amount: number)
 	end
 	if victim and humanoid and victim ~= shooter and (shooter == nil or pvp(shooter)) and pvp(victim) then
 		humanoid:TakeDamage(amount)
+		if instance:IsA("BasePart") then
+			RagdollService.shove(instance, direction.Unit * Config.RAGDOLL_SHOT_SPEED)
+		end
 	end
 end
 
@@ -127,7 +131,7 @@ local function blast(owner: Player, position: Vector3, b: Blast, ignore: Instanc
 		local humanoid = part.Parent and part.Parent:FindFirstChildOfClass("Humanoid")
 		if humanoid and not hitHumanoids[humanoid] then
 			hitHumanoids[humanoid] = true
-			hurt(owner, part, b.damage * falloff)
+			hurt(owner, part, b.damage * falloff, away + Vector3.yAxis * 0.5)
 		end
 		local prop = propOf(part)
 		if prop and prop == part and prop.Name == GAS_CAN and Ownership.isOwner(owner, prop) then
@@ -300,7 +304,7 @@ local function fire(player: Player, id: unknown, origin: unknown, direction: unk
 	local finish = if hit then hit.Position else aimOrigin + shot * def.range
 	if hit then
 		push(player, hit.Instance, shot, def.impulse)
-		hurt(player, hit.Instance, def.damage)
+		hurt(player, hit.Instance, def.damage, shot)
 		shotGasCan(player, hit.Instance)
 	end
 	fxRemote:FireAllClients(player, def.id, finish)
@@ -333,8 +337,9 @@ function WeaponService.npcFire(npc: Model, def: WeaponCatalog.WeaponDef, head: B
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if humanoid and character and hit.Instance:IsDescendantOf(character) then
 			humanoid:TakeDamage(def.damage)
+			RagdollService.shove(hit.Instance, shot * Config.RAGDOLL_SHOT_SPEED)
 		else
-			hurt(nil, hit.Instance, def.damage)
+			hurt(nil, hit.Instance, def.damage, shot)
 		end
 	end
 	fxRemote:FireAllClients(npc, def.id, finish)

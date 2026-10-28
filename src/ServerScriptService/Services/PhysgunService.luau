@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Hold = require(script.Parent.Hold)
 local Ownership = require(script.Parent.Ownership)
+local Passes = require(script.Parent.Passes)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
 local Validate = require(script.Parent.Validate)
@@ -36,7 +37,7 @@ function PhysgunService.init()
 		if not tool or not root or (prop.Position - root.Position).Magnitude > Config.GRAB_RANGE then
 			return
 		end
-		Hold.start(player, prop, tool, BEAM_COLOR, Config.HOLD_MAX, "physgun_hold")
+		Hold.start(player, prop, tool, Passes.beamColor(player) or BEAM_COLOR, Config.HOLD_MAX, "physgun_hold")
 		Sfx.play("physgun_grab", prop)
 	end)
 

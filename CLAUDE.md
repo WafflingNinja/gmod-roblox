@@ -11,7 +11,7 @@ Gmod-style freeroam sandbox on Roblox. File-based via Rojo. Scripts are in git; 
 
 ## Hard rules
 
-1. **No Valve / Facepunch / HL2 / Gmod assets.** No models, textures, sounds, or extracted files from Gmod or Half-Life, not even "a few". Roblox takes the game down. Recreate the iconic look with original meshes or CC0 packs. See `docs/ASSETS.md`.
+1. **Assets are the user's call.** Gmod/Valve maps, models, textures and sounds may be imported when the user asks. Log every import with its source in `docs/ASSETS.md`. Roblox DMCA risk is accepted.
 2. **Server decides.** Remotes carry intent (ids, aim points). Never accept damage, price, ownership, or computed results from a client.
 3. Every remote handler: rate limit first, then `typeof` checks, then allowlist, then ownership/state, then act. Fail silently. See `docs/SECURITY.md`.
 4. Never `RemoteFunction` server to client. One remote per concern.

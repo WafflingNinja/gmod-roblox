@@ -44,3 +44,13 @@ Launch after step 4. Steps 5 and 6 ship as updates. Tick a box only when verifie
 - [ ] Ragdoll NPC base
 - [ ] Behavior (friendly, hostile, follow) per `docs/NPC.md`
 - [ ] NPC cap + perf budget
+
+## 7. Looks, multi-place, map pipeline (planned 2026-10-27, in this order)
+Status 2026-10-28: items 1, 2, 3, 5, 7 are code-complete and gate-clean; item 4 (Branding) was skipped and item 6 (Server Browser) is deferred by the user. None of the boxes are ticked until the Studio/two-client checks in `docs/TESTING.md` pass. See `handoff.md` and `docs/WORLDS.md`.
+1. - [ ] **Glow-up:** Per-map lighting moods (Bigcity sunny, Bangclaw bright, Mallparking overcast, Backrooms yellow haze, Brmovie evening) + tween on map change; Atmosphere, Bloom, ColorCorrection, SunRays, reflections, glass water, shadows on ~20 strongest lights per map
+2. - [ ] **Gmod Skin:** GUI restyle in Gmod's theme (Arimo, accent #2387ed / hover #4f9ded, Derma greys 101,100,105 / 55,57,61 / 220,220,220, selection 100,170,220, tooltip 255,245,175, 2-6 px radius; main menu = white text list over the live map)
+3. - [ ] **Menu Music:** Main menu music: looped calm track (user supplies Roblox audio id), fades out on play, back in on menu
+4. - [ ] **Branding:** Icon 512x512: black bg, white W (3 variants, user picks; own glyph, no Gmod/Valve marks). Thumbnails 1920x1080: camera-placement command per shot, user snaps, crop + grade + title
+5. - [ ] **Split Worlds:** One place per map in the same universe. Start place = Flatgrass + main menu. 24 players per server, server-wide prop cap 1,500 (per-player 150 / VIP 250 stay). Map change = teleport (props don't follow)
+6. - [ ] **Server Browser:** Server browser: MemoryStore heartbeat per server (place, jobId, players + names, server region, avg ping); list shows map, players x/24, names, region flag, ping estimated from player vs server region (shown as "~40 ms"); click = TeleportAsync into that jobId
+7. - [ ] **Map Factory:** `tools/add_map.py <workshop link>`: user subscribes in Steam first -> find .gma -> gmad extract -> bsp_to_json -> alpha audit -> texture review page in browser (>=50 per page, click to reject, rejected stay flat colour) -> upload approved -> MapCatalog + MapLighting + docs/ASSETS.md row -> asks user to "Add Place" in Creator Dashboard and paste the place id -> copies the Studio import command to the clipboard

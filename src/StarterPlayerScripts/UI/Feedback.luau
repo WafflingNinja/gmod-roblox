@@ -57,6 +57,7 @@ local function build(): (Frame, TextBox)
 	end)
 	local function close()
 		frame.Visible = false
+		input:ReleaseFocus()
 	end
 	Ui.button("Send", window.body, true, {
 		AnchorPoint = Vector2.new(1, 1),

@@ -64,7 +64,8 @@ local function driveWheel(
 	throttle: number,
 	steer: number,
 	tank: boolean,
-	torque: number
+	torque: number,
+	maxSpeed: number
 )
 	local hinge = entry.hinge
 	local base = hinge.Attachment0
@@ -84,7 +85,7 @@ local function driveWheel(
 	-- Rolling forward spins about up x forward; flip for wheels whose hinge axis points the other way.
 	local forwardSpin = seat.CFrame.UpVector:Cross(seat.CFrame.LookVector)
 	local sign = if base.WorldAxis:Dot(forwardSpin) >= 0 then 1 else -1
-	hinge.AngularVelocity = sign * power * Config.CAR_MAX_SPEED / radius
+	hinge.AngularVelocity = sign * power * maxSpeed / radius
 	hinge.MotorMaxTorque = torque * radius * (if power == 0 then BRAKE else 1)
 	if entry.steer then
 		entry.steer.TargetAngle = -steer * Config.CAR_STEER_ANGLE
@@ -140,13 +141,15 @@ local function drive(seat: VehicleSeat, occupied: boolean)
 	end
 	steerAssist(seat, steer, occupied, mass)
 	local torque = mass * Config.CAR_TORQUE_PER_MASS
+	local chassisDef = root and PropCatalog.byId[root.Name]
+	local maxSpeed = if chassisDef and chassisDef.topSpeed then chassisDef.topSpeed else Config.CAR_MAX_SPEED
 	for _, list in lists do
 		local tank = true
 		for _, entry in list do
 			tank = tank and entry.steer == nil
 		end
 		for _, entry in list do
-			driveWheel(entry, seat, throttle, steer, tank, torque)
+			driveWheel(entry, seat, throttle, steer, tank, torque, maxSpeed)
 		end
 	end
 end

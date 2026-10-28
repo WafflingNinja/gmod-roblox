@@ -2,6 +2,25 @@
 
 Gmod-style freeroam sandbox on Roblox. File-based via Rojo; scripts in git, maps/meshes/gun models live in the place file only.
 
+## Session 6 (2026-10-28, Windows): ROADMAP section 7
+
+Built (code-complete, not Studio-verified unless marked):
+- **Glow-up:** `MapLighting` now has moods for all eight maps (Baseplate/Construct/Flatgrass added; Mallparking overcast, Bigcity sunny, Bangclaw bright, Backrooms haze, Brmovie evening). Effects, water and `GlobalShadows` are tweened by the existing client. `MapService.polishLook` re-applies glass water and shadows on the 20 strongest lights per map to already-saved places.
+- **Gmod skin:** already in `UI/Ui.luau` (Arimo, Derma greys, #2387ed/#4f9ded, 100,170,220 selection, 255,245,175 tooltip, 2/6 px radii); no other GUI had a hardcoded font or colour. Verified by grep only.
+- **Menu music:** already in `MainMenu.luau` (`MENU_MUSIC_ID`, loop, 1.5 s fade out on play/back in on menu). Still needs the user's Roblox audio id.
+- **Split Worlds:** `MapCatalog.DEFAULT` is now Flatgrass; per-map optional `placeId`; `PickMap` uses `TeleportAsync` for another place and falls back to the in-place map in Studio/while places are missing; a place whose id is in the catalog spawns on that map. `Config.MAX_PLAYERS = 24`, `Config.SERVER_PROP_CAP = 1500` enforced in `Ownership` (per-player 150/250 unchanged). `docs/WORLDS.md`.
+- **Server list:** not built; the user asked to leave it for later.
+- **Map Factory:** `tools/add_map.py` + `tools/texture_review.py`; `alpha_audit.py` gained `audit_bsp`, `upload_textures.py` gained `--skip-json`. The script finds/ extracts the `.gma`, converts, audits, opens the 50-per-page review, uploads approved, writes MapCatalog/MapLighting/ASSETS, prompts for a place id, copies the Studio command and starts the local server. Tested only with `--help`, `py_compile`, and an insertion test on a temp copy.
+- **Branding (7.4) skipped on the user's instruction.**
+
+Gate: `selene` clean, `luau-lsp` strict clean, all 9 lune specs pass, `stylua` run, `rojo build` passes. Nothing tested in Studio this session: no Studio MCP instance was connected.
+
+| Test first | Where |
+|---|---|
+| Flatgrass start + menu mood + teleport fallback | start place, Play |
+| 1,500 cap and 24-player display | lower `SERVER_PROP_CAP` in a test |
+| Map factory | spare Workshop map with `--skip-upload` first |
+
 ## Where things are
 
 - Place: "waffles mod", placeId 86612994618738 (Studio universe 10773009648).
@@ -26,7 +45,7 @@ Open:
 - Dupes and the Rostik unlock don't save in Studio until **Game Settings > Security > Studio access to API services** is on.
 - **Passes**: spec and ID table in `docs/GAMEPASS.md`. The user will paste the IDs. Build, test, then put them on sale.
 - Promo video: the user records clips (Win+Alt+R); cut them into a vertical short with ffmpeg (`.venv` has imageio-ffmpeg).
-- Rules: `CLAUDE.md` (no Valve/Gmod assets, server decides, `--!strict`, `task.*` only, update the matching `docs/` file in the same change).
+- Rules: `CLAUDE.md` (assets are the user's call, server decides, `--!strict`, `task.*` only, update the matching `docs/` file in the same change).
 - Docs: `ROADMAP.md` (ticks), `TO-DO.md` (build order), `docs/TESTING.md` (manual checks), `docs/SECURITY.md` (remote matrix), `docs/ARCHITECTURE.md` (layout, remotes), `docs/TOOLS.md`, `docs/DUPES.md`, `docs/ASSETS.md` (license log).
 
 ## Built in the previous session (2026-10-26 morning)

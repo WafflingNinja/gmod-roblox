@@ -29,7 +29,9 @@ Public from day one. 16-24 per server. PC only. Each player owns what they spawn
 | C | Context menu (step 2) |
 
 ## Map
-One large flat map, themed areas added later. Baseplate 2048x2048 for now.
+Split Worlds: each map is its own place in one universe. The start place is Flatgrass with the main menu; other maps are reached by teleport from the menu. 24 players per server, 1,500 props per server (150 per player, 250 with Builder+). Props do not follow you between maps.
+
+The development place still has every map far apart for testing; `tools/add_map.py` turns a Workshop map into a place plus a `MapCatalog`/`MapLighting` entry.
 
 ## Success
 A friend joins, spawns a car from wheels and planks, drives it, and tells someone else to join.

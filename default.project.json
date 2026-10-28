@@ -155,6 +155,9 @@
         "SetPvp": {
           "$className": "RemoteEvent"
         },
+        "SetBeamColor": {
+          "$className": "RemoteEvent"
+        },
         "WeaponFx": {
           "$className": "UnreliableRemoteEvent"
         },
@@ -174,13 +177,1075 @@
       "MapLighting": {
         "$className": "Folder",
         "$ignoreUnknownInstances": true,
+        "Baseplate": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 3.1
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.36,
+                0.38,
+                0.42
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.46,
+                0.48,
+                0.52
+              ]
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 13.5
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 6000
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.15
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.25
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.28,
+              "Offset": 0.1,
+              "Color": [
+                0.74,
+                0.84,
+                0.96
+              ],
+              "Decay": [
+                0.9,
+                0.86,
+                0.78
+              ],
+              "Glare": 0.2,
+              "Haze": 0.9
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.45,
+              "Size": 24,
+              "Threshold": 1.0
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.08,
+              "Saturation": 0.08,
+              "TintColor": [
+                1,
+                0.99,
+                0.96
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.3,
+              "Spread": 0.9
+            }
+          },
+          "WaterColor": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.05,
+                0.32,
+                0.42
+              ]
+            }
+          },
+          "WaterTransparency": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.25
+            }
+          },
+          "WaterReflectance": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.35
+            }
+          },
+          "WaterWaveSize": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.15
+            }
+          },
+          "WaterWaveSpeed": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 12
+            }
+          }
+        },
         "Construct": {
           "$className": "Folder",
           "$ignoreUnknownInstances": true,
           "Brightness": {
             "$className": "NumberValue",
             "$properties": {
-              "Value": 2.5
+              "Value": 2.6
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.33,
+                0.34,
+                0.38
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.44,
+                0.46,
+                0.5
+              ]
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 14.5
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 6000
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.95
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.9
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.3
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.24,
+              "Offset": 0.15,
+              "Color": [
+                0.72,
+                0.82,
+                0.95
+              ],
+              "Decay": [
+                0.88,
+                0.84,
+                0.76
+              ],
+              "Glare": 0.2,
+              "Haze": 0.9
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.45,
+              "Size": 26,
+              "Threshold": 1.0
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.08,
+              "Saturation": 0.08,
+              "TintColor": [
+                1,
+                0.99,
+                0.96
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.3,
+              "Spread": 0.9
+            }
+          },
+          "WaterColor": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.05,
+                0.32,
+                0.42
+              ]
+            }
+          },
+          "WaterTransparency": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.25
+            }
+          },
+          "WaterReflectance": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.35
+            }
+          },
+          "WaterWaveSize": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.15
+            }
+          },
+          "WaterWaveSpeed": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 12
+            }
+          }
+        },
+        "Flatgrass": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 3.2
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.38,
+                0.4,
+                0.44
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.5,
+                0.52,
+                0.55
+              ]
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 12.5
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 9000
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.15
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.18,
+              "Offset": 0.1,
+              "Color": [
+                0.76,
+                0.86,
+                0.97
+              ],
+              "Decay": [
+                0.92,
+                0.88,
+                0.8
+              ],
+              "Glare": 0.15,
+              "Haze": 0.7
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.4,
+              "Size": 24,
+              "Threshold": 1.05
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1,
+                0.99,
+                0.95
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.35,
+              "Spread": 1.0
+            }
+          },
+          "WaterColor": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.05,
+                0.34,
+                0.44
+              ]
+            }
+          },
+          "WaterTransparency": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "WaterReflectance": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.4
+            }
+          },
+          "WaterWaveSize": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.12
+            }
+          },
+          "WaterWaveSpeed": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 10
+            }
+          }
+        },
+        "Mallparking": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.9
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.07,
+                0.08,
+                0.13
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.14,
+                0.15,
+                0.22
+              ]
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 21.5
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 2400
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.05
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.55
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.45
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.4
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.38,
+              "Offset": 0,
+              "Color": [
+                0.3,
+                0.34,
+                0.48
+              ],
+              "Decay": [
+                0.16,
+                0.18,
+                0.28
+              ],
+              "Glare": 0,
+              "Haze": 2
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.35,
+              "Size": 20,
+              "Threshold": 1.05
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0,
+              "Contrast": 0.12,
+              "Saturation": -0.15,
+              "TintColor": [
+                0.82,
+                0.89,
+                1
+              ]
+            }
+          }
+        },
+        "Bigcity": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 3
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.3,
+                0.32,
+                0.36
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.42,
+                0.44,
+                0.48
+              ]
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 15.5
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 8000
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.28,
+              "Offset": 0.2,
+              "Color": [
+                0.78,
+                0.84,
+                0.93
+              ],
+              "Decay": [
+                0.92,
+                0.85,
+                0.7
+              ],
+              "Glare": 0.35,
+              "Haze": 1.1
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.45,
+              "Size": 24,
+              "Threshold": 1.1
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.08,
+              "Saturation": 0.14,
+              "TintColor": [
+                1,
+                0.98,
+                0.94
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.1,
+              "Spread": 0.8
+            }
+          }
+        },
+        "Bangclaw": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 2.2
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.22,
+                0.23,
+                0.26
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.3,
+                0.31,
+                0.34
+              ]
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 15
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 4000
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.1
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.85
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.7
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.15
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.3,
+              "Offset": 0.15,
+              "Color": [
+                0.72,
+                0.79,
+                0.9
+              ],
+              "Decay": [
+                0.9,
+                0.87,
+                0.78
+              ],
+              "Glare": 0.2,
+              "Haze": 1.1
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.35,
+              "Size": 24,
+              "Threshold": 1.1
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0,
+              "Contrast": 0.1,
+              "Saturation": 0.08,
+              "TintColor": [
+                1,
+                0.99,
+                0.95
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.2,
+              "Spread": 1
+            }
+          }
+        },
+        "Backrooms": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1.4
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.4,
+                0.36,
+                0.24
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.42,
+                0.38,
+                0.26
+              ]
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": false
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 12
+            }
+          },
+          "FogColor": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.35,
+                0.32,
+                0.2
+              ]
+            }
+          },
+          "FogStart": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 30
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 420
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.4
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.8
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.4
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.5
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.5,
+              "Offset": 0,
+              "Color": [
+                0.86,
+                0.76,
+                0.4
+              ],
+              "Decay": [
+                0.7,
+                0.6,
+                0.25
+              ],
+              "Glare": 0,
+              "Haze": 3
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.65,
+              "Size": 30,
+              "Threshold": 0.9
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.06,
+              "Saturation": -0.05,
+              "TintColor": [
+                1,
+                0.95,
+                0.72
+              ]
+            }
+          }
+        },
+        "Brmovie": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true,
+          "Brightness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 2
+            }
+          },
+          "Ambient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.3,
+                0.29,
+                0.26
+              ]
+            }
+          },
+          "OutdoorAmbient": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.34,
+                0.33,
+                0.3
+              ]
+            }
+          },
+          "GlobalShadows": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": false
+            }
+          },
+          "ClockTime": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 17.7
+            }
+          },
+          "FogColor": {
+            "$className": "Color3Value",
+            "$properties": {
+              "Value": [
+                0.2,
+                0.2,
+                0.18
+              ]
+            }
+          },
+          "FogStart": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 60
+            }
+          },
+          "FogEnd": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 900
+            }
+          },
+          "ExposureCompensation": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "EnvironmentDiffuseScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "EnvironmentSpecularScale": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 1
+            }
+          },
+          "ShadowSoftness": {
+            "$className": "NumberValue",
+            "$properties": {
+              "Value": 0.2
+            }
+          },
+          "Atmosphere": {
+            "$className": "Atmosphere",
+            "$properties": {
+              "Density": 0.36,
+              "Offset": 0.2,
+              "Color": [
+                0.93,
+                0.7,
+                0.5
+              ],
+              "Decay": [
+                0.9,
+                0.45,
+                0.25
+              ],
+              "Glare": 0.85,
+              "Haze": 1.6
+            }
+          },
+          "Bloom": {
+            "$className": "BloomEffect",
+            "$properties": {
+              "Intensity": 0.7,
+              "Size": 26,
+              "Threshold": 1.0
+            }
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.0,
+              "Contrast": 0.12,
+              "Saturation": 0.1,
+              "TintColor": [
+                1,
+                0.9,
+                0.8
+              ]
+            }
+          },
+          "SunRays": {
+            "$className": "SunRaysEffect",
+            "$properties": {
+              "Intensity": 0.25,
+              "Spread": 0.9
             }
           }
         }

@@ -4,6 +4,7 @@
 -- While on, the arrows no longer walk (WASD still does).
 local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local KEYS: { [Enum.KeyCode]: Vector2 } = {
@@ -41,7 +42,9 @@ function KeyboardLook.init()
 	ContextActionService:BindActionAtPriority(
 		"KeyboardLook",
 		function(_, state, input)
-			if not enabled then
+			-- Let the caret move in a TextBox (the menu's map search) instead of sinking the arrows.
+			if not enabled or UserInputService:GetFocusedTextBox() then
+				table.clear(held)
 				return Enum.ContextActionResult.Pass
 			end
 			held[input.KeyCode] = state == Enum.UserInputState.Begin

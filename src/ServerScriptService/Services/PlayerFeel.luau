@@ -30,6 +30,9 @@ local ANIMATIONS = {
 -- Standard blocky body at standard scale with default animations. Tall bundle bodies (Rthro etc.) are tall from the
 -- mesh itself, so the scale values alone are not enough. Clothes, face, head and accessories stay.
 local function standardAvatar(character: Model)
+	if not character:IsDescendantOf(workspace) then
+		return
+	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
 		return
@@ -78,7 +81,7 @@ local function standardAvatar(character: Model)
 	description.BodyTypeScale = 0
 	description.ProportionScale = 0
 	local applied, err = pcall(function()
-		humanoid:ApplyDescription(description)
+		humanoid:ApplyDescriptionAsync(description)
 	end)
 	if not applied then
 		warn(`PlayerFeel: standard avatar failed for {character.Name}: {err}`)

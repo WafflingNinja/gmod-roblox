@@ -4,15 +4,28 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
 local BadAssets = require(ReplicatedStorage.Shared.BadAssets)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapCatalog = require(ReplicatedStorage.Shared.MapCatalog)
+local Passes = require(script.Parent.Passes)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Validate = require(script.Parent.Validate)
 
 local SPREAD = 6 -- studs; players picking the same map don't stack
+local PASS_WAIT = 4 -- seconds a spawn waits for the join-time pass check (VIP pad)
+local VIP_PAD_SIZE = Vector3.new(8, 0.6, 8)
+local VIP_PAD_DROP = 3.2 -- studs above the pad a VIP is placed
+local VIP_PAD_OFFSETS = {
+	Vector3.new(9, 0, 0),
+	Vector3.new(-9, 0, 0),
+	Vector3.new(0, 0, 9),
+	Vector3.new(0, 0, -9),
+	Vector3.new(9, 0, 9),
+	Vector3.new(-9, 0, -9),
+}
 local FACES = {
 	Enum.NormalId.Front,
 	Enum.NormalId.Back,
@@ -27,6 +40,7 @@ type FacePick = { part: BasePart, id: Enum.NormalId, normal: Vector3, point: Vec
 
 local pickRemote = ReplicatedStorage.Remotes.PickMap :: RemoteEvent
 local limiter = RateLimiter.new(Config.MAP_BUCKET_CAPACITY, Config.MAP_REFILL_PER_SECOND)
+local vipPoints: { [string]: Vector3 } = {}
 
 local function spawnPoint(def: MapCatalog.MapDef): Vector3?
 	if not def.model then
@@ -34,11 +48,155 @@ local function spawnPoint(def: MapCatalog.MapDef): Vector3?
 		return if pad and pad:IsA("BasePart") then pad.Position else nil
 	end
 	local maps = Workspace:FindFirstChild("Maps")
+	local model = maps and maps:FindFirstChild(def.model)
 	local spawn = def.spawn
-	if not maps or not maps:FindFirstChild(def.model) or not spawn then
+	if not model or not spawn then
 		return nil
 	end
-	return Vector3.new(spawn[1], spawn[2], spawn[3])
+	-- Imported maps raycast their own floor and record a Spawn attribute; MapCatalog keeps a fallback so the
+	-- data stays plain for lune.
+	local imported = model:GetAttribute("Spawn")
+	local point = if typeof(imported) == "Vector3" then imported else Vector3.new(spawn[1], spawn[2], spawn[3])
+	-- Old imports recorded the Source origin +4, which on Mall Parking is 26 studs under the deck. Same search
+	-- as MapImport.spawnFor: drop from just under a ceiling, then fall back to the floor above the point.
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { model }
+	for _, lift in { 4, 10, 24 } do
+		local ceiling = Workspace:Raycast(point, Vector3.yAxis * lift, params)
+		local start = point + Vector3.yAxis * (if ceiling then math.max(ceiling.Distance - 1, 0) else lift)
+		local floor = Workspace:Raycast(start, Vector3.yAxis * -120, params)
+		if floor and floor.Normal.Y > 0.5 then
+			return floor.Position + Vector3.yAxis * 4
+		end
+	end
+	local above = Workspace:Raycast(point, Vector3.yAxis * 120, params)
+	if above and above.Normal.Y < -0.5 then
+		return above.Position + Vector3.yAxis * 4
+	end
+	return point
+end
+
+-- Split Worlds: a place in the universe can host exactly one map. MapCatalog.placeId is the link back.
+local function hostedMap(): MapCatalog.MapDef?
+	return MapCatalog.byPlaceId[game.PlaceId]
+end
+
+local function hostedMapId(): string?
+	local def = hostedMap()
+	return if def then def.id else nil
+end
+
+local function hasModel(def: MapCatalog.MapDef): boolean
+	if not def.model then
+		return true
+	end
+	local maps = Workspace:FindFirstChild("Maps")
+	return maps ~= nil and maps:FindFirstChild(def.model) ~= nil
+end
+
+local sendTo: (Player, MapCatalog.MapDef) -> ()
+
+-- Send a player to another map. With a place id this is a real teleport (props do not follow); while the
+-- places are still being created (or in Studio) the in-place copy is used when this place has it.
+local function changeMap(player: Player, def: MapCatalog.MapDef)
+	if def.placeId and def.placeId ~= game.PlaceId then
+		local ok, err = pcall(function()
+			TeleportService:TeleportAsync(def.placeId :: number, { player })
+		end)
+		if ok then
+			return
+		end
+		warn(`MapService: teleport to {def.id} ({def.placeId}) failed: {err}`)
+		if not hasModel(def) then
+			return
+		end
+	end
+	if not spawnPoint(def) then
+		return
+	end
+	player:SetAttribute(Config.MAP_ATTRIBUTE, def.id)
+	sendTo(player, def)
+end
+
+-- A golden pad beside the map's normal spawn. VIPs land on it when they respawn; everyone else keeps the
+-- normal spawn. The pad is anchored map decoration, created once per server.
+local function buildVipPad(def: MapCatalog.MapDef)
+	local point = spawnPoint(def)
+	if not point then
+		return
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = {}
+	local props = Workspace:FindFirstChild("Props")
+	if props then
+		table.insert(ignore, props)
+	end
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignore, player.Character)
+		end
+	end
+	params.FilterDescendantsInstances = ignore
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = ignore
+	local function clearAbove(position: Vector3): boolean
+		local parts = Workspace:GetPartBoundsInBox(
+			CFrame.new(position + Vector3.yAxis * 3),
+			Vector3.new(VIP_PAD_SIZE.X - 1, 4, VIP_PAD_SIZE.Z - 1),
+			overlap
+		)
+		for _, part in parts do
+			if part.CanCollide then
+				return false
+			end
+		end
+		return true
+	end
+	local function groundAt(position: Vector3): Vector3?
+		local hit = Workspace:Raycast(position + Vector3.yAxis, Vector3.yAxis * -200, params)
+		return if hit and hit.Normal.Y > 0.5 then hit.Position else nil -- a wall's side is not ground
+	end
+	local base = groundAt(point)
+	local ground = base or point
+	if base then
+		for _, offset in VIP_PAD_OFFSETS do
+			local candidate = groundAt(point + offset)
+			if candidate and math.abs(candidate.Y - base.Y) <= 2 and clearAbove(candidate) then
+				ground = candidate
+				break
+			end
+		end
+	end
+	local pad = Instance.new("Part")
+	pad.Name = "VipSpawnPad"
+	pad.Size = VIP_PAD_SIZE
+	pad.CFrame = CFrame.new(ground + Vector3.yAxis * (VIP_PAD_SIZE.Y / 2 + 0.02))
+	pad.Anchored = true
+	pad.CanCollide = true
+	pad.CastShadow = false
+	pad.Material = Enum.Material.Neon
+	pad.Color = Color3.fromRGB(255, 203, 64)
+	pad.Parent = if def.model and Workspace:FindFirstChild("Maps") then Workspace.Maps else Workspace
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "VipSign"
+	billboard.Adornee = pad
+	billboard.Size = UDim2.fromOffset(120, 28)
+	billboard.StudsOffset = Vector3.new(0, 2.4, 0)
+	billboard.AlwaysOnTop = false
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = "VIP SPAWN"
+	text.Font = Enum.Font.ArimoBold
+	text.TextScaled = true
+	text.TextColor3 = Color3.fromRGB(255, 236, 170)
+	text.TextStrokeTransparency = 0.35
+	text.Parent = billboard
+	billboard.Parent = pad
+	vipPoints[def.id] = pad.Position + Vector3.yAxis * VIP_PAD_DROP
 end
 
 -- Invisible ground under a map's visible grass, in tiles (parts max out at 2048 studs).
@@ -63,6 +221,28 @@ local function addFloor(def: MapCatalog.MapDef, model: Instance)
 			part.Parent = model
 		end
 	end
+end
+
+-- Terrain water for a map whose water brushes did not import (they were a brush entity, not world geometry).
+-- Roblox swims you in terrain water and gives unanchored props buoyancy, so no custom swim code is needed.
+local function fillWater(def: MapCatalog.MapDef)
+	local water = def.water
+	if not water or not Workspace.Terrain then
+		return
+	end
+	local width = water.max[1] - water.min[1]
+	local depth = water.max[2] - water.min[2]
+	if width <= 0 or depth <= 0 then
+		return
+	end
+	Workspace.Terrain:FillBlock(
+		CFrame.new((water.min[1] + water.max[1]) / 2, water.y - water.depth / 2, (water.min[2] + water.max[2]) / 2),
+		Vector3.new(width, water.depth, depth),
+		Enum.Material.Water
+	)
+	Workspace.Terrain.WaterColor = Color3.fromRGB(57, 108, 128)
+	Workspace.Terrain.WaterTransparency = 0.3
+	Workspace.Terrain.WaterWaveSize = 0.08
 end
 
 local OPPOSITE: { [Enum.NormalId]: Enum.NormalId } = {
@@ -216,6 +396,77 @@ local function cleanBadAssets(maps: Instance)
 	end
 end
 
+-- Look pass, mirrors tools/MapImport.luau's polish so a place saved before the import fix still gets it:
+-- water pieces become see-through glass you can wade through, and only the strongest lights cast shadows
+-- (a shadowed PointLight is expensive, so each map keeps the same 20-light budget). New imports set
+-- LookPolished, so a freshly imported map is not scanned again for nothing.
+local SOLID_WATER_WORDS = { "heater", "tower", "pipe", "tank", "melon", "bottle", "cooler", "pump", "tap" }
+
+-- "water" must start a word (water_01, Pool_Water) and not be a solid prop (water_heater, watertower).
+local function isWaterMesh(name: string): boolean
+	local lower = string.lower(name)
+	if not (string.find(lower, "^water") or string.find(lower, "[^%a]water")) then
+		return false
+	end
+	for _, word in SOLID_WATER_WORDS do
+		if string.find(lower, word, 1, true) then
+			return false
+		end
+	end
+	return true
+end
+
+local function polishLook(model: Instance, floorY: number?)
+	if model:GetAttribute("LookPolished") == true then
+		return
+	end
+	local ranked: { PointLight } = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local part: BasePart = descendant
+			local name = string.lower(part.Name)
+			if part:IsA("MeshPart") and isWaterMesh(part.Name) then
+				local mesh = part :: MeshPart
+				mesh.Material = Enum.Material.Glass
+				mesh.Transparency = 0.35
+				mesh.Reflectance = 0.1
+				mesh.CanCollide = false
+			else
+				local hullLid = floorY
+					and part.CanCollide
+					and part.Transparency >= 0.99
+					and part.Size.Y <= 2
+					and math.abs(part.Position.Y - floorY) <= 3
+				local blind = string.find(name, "wallpapertape", 1, true) ~= nil
+					or hullLid
+					or (
+						floorY
+						and part.CanCollide
+						and math.abs(part.Position.Y - floorY) < 2
+						and string.find(name, "ceiling", 1, true) ~= nil
+					)
+				if blind then
+					-- Backrooms Movie: a tape panel fills the hidden doorway, the only thing in the gap.
+					-- Backrooms: a ceiling plane on the walk floor is the invisible lid over a floor hole (its
+					-- front face points down), so from above it reads as an open drop.
+					-- Older conversions: a thin invisible hull sheet on the walk floor caps a hole the same way.
+					(part :: BasePart).CanCollide = false
+				end
+			end
+		elseif descendant:IsA("PointLight") then
+			descendant.Brightness = math.min(descendant.Brightness, Config.MAX_LIGHT_BRIGHTNESS)
+			table.insert(ranked, descendant)
+		end
+	end
+	table.sort(ranked, function(a: PointLight, b: PointLight)
+		return a.Brightness * a.Range > b.Brightness * b.Range
+	end)
+	for index, light in ranked do
+		light.Shadows = index <= Config.SHADOW_LIGHTS
+	end
+	model:SetAttribute("LookPolished", true)
+end
+
 local function makeMirrors(def: MapCatalog.MapDef, model: Instance)
 	local points: { { number } } = def.mirrors or {}
 	for _, at in points do
@@ -234,9 +485,10 @@ local function makeMirrors(def: MapCatalog.MapDef, model: Instance)
 	end
 end
 
-local function sendTo(player: Player, def: MapCatalog.MapDef)
+sendTo = function(player: Player, def: MapCatalog.MapDef)
 	local character = player.Character
-	local point = spawnPoint(def)
+	local vipPoint = if Passes.has(player, "vip") then vipPoints[def.id] else nil
+	local point = vipPoint or spawnPoint(def)
 	if not character or not point or not Validate.aliveRoot(player) then
 		return
 	end
@@ -247,6 +499,8 @@ end
 local MapService = {}
 
 function MapService.init()
+	local hosted = hostedMapId()
+	ReplicatedStorage:SetAttribute(Config.SERVER_MAP_ATTRIBUTE, hosted or MapCatalog.DEFAULT)
 	-- Maps come from the Creator Store; a script inside one would run with server rights.
 	local maps = Workspace:FindFirstChild("Maps")
 	if maps then
@@ -312,8 +566,17 @@ function MapService.init()
 			local model = def.model and maps:FindFirstChild(def.model)
 			if model then
 				addFloor(def, model)
+				fillWater(def)
+				local stand = spawnPoint(def)
+				polishLook(model, if stand then stand.Y - 4 else nil)
 				makeMirrors(def, model)
 			end
+		end
+	end
+
+	for _, def in MapCatalog.list do
+		if def.model then
+			buildVipPad(def)
 		end
 	end
 
@@ -325,19 +588,29 @@ function MapService.init()
 			return
 		end
 		local def = MapCatalog.byId[id]
-		if not def or not spawnPoint(def) then
+		if not def then
 			return
 		end
-		player:SetAttribute(Config.MAP_ATTRIBUTE, id)
-		sendTo(player, def)
+		changeMap(player, def)
 	end)
 
 	local function onPlayerAdded(player: Player)
-		player:SetAttribute(Config.MAP_ATTRIBUTE, MapCatalog.DEFAULT)
+		local placeMap = hostedMapId()
+		player:SetAttribute(Config.SERVER_MAP_ATTRIBUTE, placeMap or "")
+		player:SetAttribute(Config.MAP_ATTRIBUTE, placeMap or MapCatalog.DEFAULT)
 		player.CharacterAdded:Connect(function()
 			local def = MapCatalog.byId[player:GetAttribute(Config.MAP_ATTRIBUTE) :: string]
 			if def and def.model then
-				task.defer(sendTo, player, def) -- after the SpawnLocation has placed the character
+				task.defer(function()
+					-- The VIP pad needs the join-time pass check; don't wait forever if the web call hangs.
+					local waited = 0
+					while not player:GetAttribute(Config.PASSES_CHECKED_ATTRIBUTE) and waited < PASS_WAIT do
+						waited += task.wait()
+					end
+					if player.Parent then
+						sendTo(player, def) -- after the SpawnLocation has placed the character
+					end
+				end)
 			end
 		end)
 	end

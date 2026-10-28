@@ -1,7 +1,11 @@
 --!strict
 return table.freeze({
-	BUILD = "v18 (guns sit where you posed them)", -- shown in the HUD; bump on every change so a stale Studio is obvious
+	BUILD = "v19 (moods, worlds, browser, map factory)", -- shown in the HUD; bump on every change so a stale Studio is obvious
 	PROP_CAP = 150,
+	SERVER_PROP_CAP = 1500, -- all players together on one server (per-player caps still apply)
+	MAX_PLAYERS = 24, -- Roblox place setting; the browser shows x/24
+	SHADOW_LIGHTS = 20, -- strongest PointLights per map that cast shadows (MapService polish)
+	MAX_LIGHT_BRIGHTNESS = 4, -- cap on imported PointLight brightness (some Source lamps are blinding)
 	SPAWN_RANGE = 150, -- studs, character to requested spawn point
 	SPAWN_BUCKET_CAPACITY = 5,
 	SPAWN_REFILL_PER_SECOND = 4,
@@ -14,6 +18,14 @@ return table.freeze({
 	FLOAT_TAG = "SandboxFloat", -- props FloatService lifts in water; lift (mass units) in the FloatLift attribute
 	OWNER_ATTRIBUTE = "OwnerUserId",
 	COUNT_ATTRIBUTE = "PropCount", -- on Player, replicated to the client HUD
+	BEAM_COLOR_ATTRIBUTE = "BeamColor", -- on Player: 1-based index into PALETTE (Physgun Colors pass)
+	PASSES_CHECKED_ATTRIBUTE = "PassesChecked", -- on Player: set once the join-time pass ownership check has finished
+	VIP_BEAM_COLOR = { 255, 203, 64 }, -- gold; VIP overrides any chosen beam colour
+	VIP_PROP_CAP = 250, -- Builder+: own props per player
+	VIP_NPC_CAP = 20, -- NPC Pack: NPCs per player
+	VIP_DUPE_SLOTS = 30, -- More Dupe Slots
+	BEAM_BUCKET_CAPACITY = 5,
+	BEAM_REFILL_PER_SECOND = 2,
 
 	PHYSGUN = "Physgun", -- Tool names; the server finds the equipped tool by name
 	TOOLGUN = "Toolgun",
@@ -57,6 +69,14 @@ return table.freeze({
 	CAR_MAX_YAW_RATE = 2.2, -- rad/s cap on that
 	CAR_STEER_ASSIST = 90, -- assist torque per unit of mass per rad/s of yaw-rate error
 	RAGDOLL_GETUP = 3, -- seconds before a toggled ragdoll stands up
+	RAGDOLL_RISE = 0.7, -- seconds the body is lifted upright (limbs still loose) before the joints take over again
+	RAGDOLL_DENSITY = 1.1, -- limb density; heavier than the default 0.7 so bodies drop and settle instead of floating
+	RAGDOLL_TORSO_DENSITY = 1.5,
+	RAGDOLL_FRICTION = 0.9, -- ground grip: bodies slide to a stop instead of skating
+	RAGDOLL_JOINT_FRICTION = 14, -- ball-joint resistance per unit of limb mass; stops limbs jittering at rest
+	RAGDOLL_SHOT_SPEED = 28, -- studs/s a bullet adds to the limb it hits while that body is floppy
+	RAGDOLL_CAMERA_FOLLOW = 7, -- per second, how fast the ragdoll camera catches up with the torso
+	RAGDOLL_CAMERA_DISTANCE = 11, -- studs behind the torso
 	RAGDOLL_BUCKET_CAPACITY = 3,
 	RAGDOLL_REFILL_PER_SECOND = 1,
 	WHEEL_PROPS = { wheel_small = true, wheel_big = true }, -- prop ids the Wheel tool may mount
@@ -68,7 +88,12 @@ return table.freeze({
 	DUPE_STORE_REFILL_PER_SECOND = 0.2,
 	DUPE_SAVE_DELAY = 15, -- seconds; slot changes are batched into one DataStore write
 	MAP_ATTRIBUTE = "Map", -- on Player: MapCatalog id the player spawns on
+	SERVER_MAP_ATTRIBUTE = "ServerMap", -- on Player/ReplicatedStorage: map hosted by this place (Flatgrass in the start place)
 	MAP_LADDER_TEXTURE = "rbxassetid://98078659072409", -- original brushed metal, replaces the converter's empty ladder TextureId
+	MENU_MUSIC_ID = "", -- "rbxassetid://<id>" of the looping main-menu track; empty plays nothing
+	MENU_MUSIC_VOLUME = 0.4,
+	MENU_MUSIC_FADE = 1.5, -- seconds to fade out on Play and back in on the menu
+	LIGHTING_FADE = 1.5, -- seconds the sky, fog and effects take to blend when the map changes
 	MAP_BUCKET_CAPACITY = 2,
 	MAP_REFILL_PER_SECOND = 0.5,
 	AMMO_ATTRIBUTE = "Ammo", -- on each gun Tool: rounds in the magazine (server-set)

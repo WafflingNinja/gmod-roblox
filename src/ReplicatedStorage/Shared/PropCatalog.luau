@@ -45,6 +45,8 @@ export type PropDef = {
 	details: { Detail }?,
 	className: SeatClass?,
 	vehicle: Vehicle?,
+	pass: string?, -- game pass key required to spawn it
+	topSpeed: number?, -- studs/s at the wheel rim; default Config.CAR_MAX_SPEED
 }
 
 local STEEL = { 110, 116, 122 }
@@ -409,6 +411,37 @@ local list: { PropDef } = {
 			part("Cylinder", { 1.4, 0.3, 0.3 }, { -0.6, 1.5, 4.1 }, DARK, "Metal", { 0, 90, 0 }),
 			part("Ball", { 0.6, 0.6, 0.6 }, { 1.6, 1.1, -4.05 }, HEADLIGHT, "Neon"),
 			part("Ball", { 0.6, 0.6, 0.6 }, { -1.6, 1.1, -4.05 }, HEADLIGHT, "Neon"),
+		},
+	},
+	{
+		id = "car_sports",
+		name = "Sports Car",
+		category = "Cars",
+		shape = "Block",
+		size = { 6, 0.8, 11 },
+		color = { 235, 82, 42 },
+		material = "SmoothPlastic",
+		pass = "sports_car",
+		topSpeed = 75, -- Config.CAR_MAX_SPEED notes 90 spins the wheels out; untested in Studio
+		vehicle = { seat = { -0.9, 0.9, 0.4 }, wheel = "wheel_small", wheels = fourWheels(3, -0.15, -3.4, 3.4) },
+		details = {
+			part("Block", { 5.7, 0.7, 3.4 }, { 0, 0.45, -3.5 }, { 235, 82, 42 }, "SmoothPlastic"), -- low nose
+			part("Block", { 5.7, 0.55, 2.2 }, { 0, 0.35, 4.1 }, { 235, 82, 42 }, "SmoothPlastic"), -- rear deck
+			part("Block", { 0.25, 0.7, 5.6 }, { 2.9, 0.35, 0.3 }, { 225, 72, 36 }, "SmoothPlastic"), -- skirts
+			part("Block", { 0.25, 0.7, 5.6 }, { -2.9, 0.35, 0.3 }, { 225, 72, 36 }, "SmoothPlastic"),
+			part("Block", { 5.2, 1.15, 0.12 }, { 0, 1.25, -1.35 }, GLASS, "Glass", { -32, 0, 0 }), -- windshield
+			part("Block", { 4.9, 0.9, 0.12 }, { 0, 1.2, 2.3 }, GLASS, "Glass", { 28, 0, 0 }), -- rear glass
+			part("Block", { 5.4, 0.25, 0.4 }, { 0, 1.85, 5.35 }, DARK, "Metal"), -- wing
+			part("Block", { 0.18, 1.1, 0.4 }, { 2.4, 1.3, 5.35 }, DARK, "Metal"), -- wing mounts
+			part("Block", { 0.18, 1.1, 0.4 }, { -2.4, 1.3, 5.35 }, DARK, "Metal"),
+			part("Block", { 5.8, 0.35, 0.6 }, { 0, 0.05, -5.55 }, DARK, "Metal"), -- splitter
+			part("Block", { 5.8, 0.4, 0.5 }, { 0, 0.15, 5.45 }, DARK, "Metal"), -- diffuser
+			part("Ball", { 0.7, 0.7, 0.7 }, { 1.9, 0.7, -5.45 }, HEADLIGHT, "Neon"),
+			part("Ball", { 0.7, 0.7, 0.7 }, { -1.9, 0.7, -5.45 }, HEADLIGHT, "Neon"),
+			part("Block", { 1.2, 0.3, 0.1 }, { 1.9, 0.75, 5.42 }, TAILLIGHT, "Neon"),
+			part("Block", { 1.2, 0.3, 0.1 }, { -1.9, 0.75, 5.42 }, TAILLIGHT, "Neon"),
+			part("Cylinder", { 0.8, 0.28, 0.28 }, { 0.9, 0.3, 5.65 }, STEEL, "Metal", { 0, 90, 0 }), -- exhausts
+			part("Cylinder", { 0.8, 0.28, 0.28 }, { -0.9, 0.3, 5.65 }, STEEL, "Metal", { 0, 90, 0 }),
 		},
 	},
 }

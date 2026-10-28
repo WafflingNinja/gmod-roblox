@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game Passes</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    padding: 32px 24px 48px;
+    background: #14161a;
+    color: #e6e8eb;
+    font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: .3px; }
+  .sub { margin: 0 0 28px; color: #8b939e; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; background: #1b1e24; border-radius: 10px; overflow: hidden; }
+  th, td { padding: 14px 16px; text-align: left; vertical-align: middle; border-bottom: 1px solid #262b33; }
+  th { background: #20242b; color: #aab2bd; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #20242b; }
+  .kind { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pass { background: #1f3a5f; color: #9cc4ff; }
+  .product { background: #3d2f14; color: #ffcf7a; }
+  .name { font-weight: 600; font-size: 16px; }
+  .desc { color: #b6bdc7; max-width: 420px; }
+  .price { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; color: #7ee0a3; }
+  .icon { display: flex; align-items: center; gap: 12px; }
+  .icon img { width: 64px; height: 64px; border-radius: 10px; background: #0f1115; object-fit: contain; }
+  code { font-size: 13px; color: #9fb0c4; background: #0f1115; padding: 3px 7px; border-radius: 5px; }
+</style>
+</head>
+<body>
+  <h1>Game Passes</h1>
+  <p class="sub">9 items — 6 passes, 3 tip products. All wired into the game. Icons: <code>C:\Users\rosti\Desktop\gamepass-icons</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Kind</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Price (R$)</th>
+        <th>ID</th>
+        <th>Icon</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">Physgun Colors</td>
+        <td class="desc">Pick any color for your physgun and gravity gun beam.</td>
+        <td class="price">99</td>
+        <td><code>2058388684</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/1_physgun_colors.png" alt=""><code>1_physgun_colors.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">More Dupe Slots</td>
+        <td class="desc">Save up to 30 builds instead of 10.</td>
+        <td class="price">99</td>
+        <td><code>2058670704</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/2_more_dupe_slots.png" alt=""><code>2_more_dupe_slots.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">Builder+</td>
+        <td class="desc">Spawn 100 more props (250 instead of 150).</td>
+        <td class="price">149</td>
+        <td><code>2058016713</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/3_builder_plus.png" alt=""><code>3_builder_plus.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">VIP</td>
+        <td class="desc">Gold VIP name tag, golden beam, gold trail and a VIP spawn pad.</td>
+        <td class="price">199</td>
+        <td><code>2059576689</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/4_vip.png" alt=""><code>4_vip.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">NPC Pack</td>
+        <td class="desc">Spawn twice as many NPCs (20 instead of 10).</td>
+        <td class="price">149</td>
+        <td><code>2057170769</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/5_npc_pack.png" alt=""><code>5_npc_pack.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind pass">Pass</span></td>
+        <td class="name">Sports Car</td>
+        <td class="desc">Unlocks a fast sports car in the Cars tab.</td>
+        <td class="price">149</td>
+        <td><code>2057668693</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/6_sports_car.png" alt=""><code>6_sports_car.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind product">Product</span></td>
+        <td class="name">Tip 25</td>
+        <td class="desc">Say thanks to the dev!</td>
+        <td class="price">25</td>
+        <td><code>2057176765</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/7_tip_25.png" alt=""><code>7_tip_25.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind product">Product</span></td>
+        <td class="name">Tip 100</td>
+        <td class="desc">Big thanks to the dev!</td>
+        <td class="price">100</td>
+        <td><code>2057866690</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/7_tip_100.png" alt=""><code>7_tip_100.png</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind product">Product</span></td>
+        <td class="name">Tip 500</td>
+        <td class="desc">Legendary thanks to the dev!</td>
+        <td class="price">500</td>
+        <td><code>2057134730</code></td>
+        <td class="icon"><img src="file:///C:/Users/rosti/Desktop/gamepass-icons/7_tip_500.png" alt=""><code>7_tip_500.png</code></td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

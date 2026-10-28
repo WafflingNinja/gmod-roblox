@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Hold = require(script.Parent.Hold)
 local Ownership = require(script.Parent.Ownership)
+local Passes = require(script.Parent.Passes)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
 local Validate = require(script.Parent.Validate)
@@ -76,7 +77,14 @@ function GravityGunService.init()
 		end
 		local offset = root.Position - prop.Position
 		if offset.Magnitude <= Config.GRAVGUN_HOLD_RANGE then
-			Hold.start(player, prop, tool, BEAM_COLOR, Config.GRAVGUN_HOLD_RANGE, "gravgun_hold")
+			Hold.start(
+				player,
+				prop,
+				tool,
+				Passes.beamColor(player) or BEAM_COLOR,
+				Config.GRAVGUN_HOLD_RANGE,
+				"gravgun_hold"
+			)
 		else
 			local toward = offset.Unit * Config.GRAVGUN_PULL_SPEED
 			kick(prop, toward - prop.AssemblyLinearVelocity)

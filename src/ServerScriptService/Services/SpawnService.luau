@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PassCatalog = require(ReplicatedStorage.Shared.PassCatalog)
 local PropCatalog = require(ReplicatedStorage.Shared.PropCatalog)
 local Ownership = require(script.Parent.Ownership)
+local Passes = require(script.Parent.Passes)
 local PropBuilder = require(script.Parent.PropBuilder)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Sfx = require(script.Parent.Sfx)
@@ -62,12 +64,21 @@ function SpawnService.init()
 		if not def or not Validate.isFiniteVector(position) then
 			return
 		end
+		if def.pass and not Passes.has(player, def.pass) then
+			local pass = PassCatalog.byKey[def.pass]
+			notify(player, `{def.name} needs the {if pass then pass.name else def.pass} pass.`)
+			return
+		end
 		local root = Validate.aliveRoot(player)
 		if not root or (position - root.Position).Magnitude > Config.SPAWN_RANGE then
 			return
 		end
 		if not Ownership.canSpawn(player) then
-			notify(player, `Prop limit reached ({Config.PROP_CAP}). Remove some first.`)
+			if Ownership.serverCount() >= Config.SERVER_PROP_CAP then
+				notify(player, `Server prop limit reached ({Config.SERVER_PROP_CAP}). Try again in a moment.`)
+			else
+				notify(player, `Prop limit reached ({Ownership.cap(player)}). Remove some first.`)
+			end
 			return
 		end
 		if SpawnService.nearOtherPlayer(player, position) then

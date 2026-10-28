@@ -65,7 +65,7 @@ for _, def in PropCatalog.list do
 		assert(PropCatalog.halfHeight(def) > def.size[2] / 2, "car rests on its wheels: " .. def.id)
 	end
 end
-assert(cars == 3, "three premade cars")
+assert(cars == 4, "four premade cars")
 assert(PropCatalog.byId.vehicle_seat.className == "VehicleSeat", "driver seat")
 assert(PropCatalog.halfHeight(PropCatalog.byId.car_sedan) == 1.7, "sedan: wheel radius 1.5 + mount 0.2 below centre")
 

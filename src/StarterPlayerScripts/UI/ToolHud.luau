@@ -57,12 +57,13 @@ local function getGui(): ScreenGui
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -24, 1, -24),
 		Size = UDim2.fromOffset(170, 64),
-		BackgroundColor3 = THEME.panel,
+		BackgroundColor3 = THEME.dark,
 		BackgroundTransparency = 0.1,
 		BorderSizePixel = 0,
 		Visible = false,
 	}, newGui)
-	make("UIStroke", { Color = THEME.border }, panel)
+	make("UICorner", { CornerRadius = THEME.radius }, panel)
+	make("UIStroke", { Color = THEME.border, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, panel)
 	make("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, panel)
 	ammoName = Ui.label("", panel, {
 		Position = UDim2.fromOffset(0, 6),
@@ -131,16 +132,29 @@ local function dupeRows(parent: Instance, onDupe: (DupeAction, number) -> ()): (
 	local clip = Ui.label("", frame, {
 		Size = UDim2.new(1, 0, 0, 18),
 		TextSize = 15,
-		TextColor3 = THEME.accentText,
 		TextTruncate = Enum.TextTruncate.AtEnd,
+		LayoutOrder = 0,
 	})
+	local slotList = make("ScrollingFrame", {
+		Name = "Slots",
+		Size = UDim2.fromScale(1, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		LayoutOrder = 1,
+	}, frame)
+	make("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, slotList)
 	local labels: { TextLabel } = {}
-	for slot = 1, Config.DUPE_SLOTS do
+	local rowFrames: { Frame } = {}
+	for slot = 1, Config.VIP_DUPE_SLOTS do
 		local row = make("Frame", {
 			Size = UDim2.new(1, 0, 0, 24),
 			BackgroundTransparency = 1,
 			LayoutOrder = slot,
-		}, frame)
+		}, slotList)
+		rowFrames[slot] = row
 		make("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
 			Padding = UDim.new(0, 3),
@@ -167,11 +181,15 @@ local function dupeRows(parent: Instance, onDupe: (DupeAction, number) -> ()): (
 	return frame,
 		function(clipboard, slots)
 			clip.Text = if clipboard == "" then "Clipboard empty" else `Clipboard: {clipboard}`
+			local shown = #slots
 			for slot, slotLabel in labels do
+				local row = rowFrames[slot]
+				row.Visible = slot <= shown
 				local text = slots[slot]
 				slotLabel.Text = `{slot}  {if text and text ~= "" then text else "-"}`
-				slotLabel.TextColor3 = if text and text ~= "" then THEME.text else THEME.muted
+				slotLabel.TextTransparency = if text and text ~= "" then 0 else 0.45
 			end
+			slotList.Size = UDim2.new(1, 0, 0, math.min(shown * 27, 243))
 		end
 end
 
@@ -197,11 +215,12 @@ function ToolHud.createToolgunPanel(
 	local modeList = make("Frame", {
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = THEME.rowAlt,
+		BackgroundColor3 = THEME.dark,
 		BorderSizePixel = 0,
 		LayoutOrder = 1,
 	}, body)
-	make("UIStroke", { Color = THEME.border }, modeList)
+	make("UICorner", { CornerRadius = THEME.radius }, modeList)
+	make("UIStroke", { Color = THEME.border, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, modeList)
 	make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }, modeList)
 	local rows: { [string]: Ui.Row } = {}
 	for index, mode in ToolModes.list do
@@ -216,7 +235,6 @@ function ToolHud.createToolgunPanel(
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextSize = 15,
-		TextColor3 = THEME.muted,
 		TextWrapped = true,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		LayoutOrder = 100,

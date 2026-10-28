@@ -17,6 +17,7 @@ local VoicePicker = require(ReplicatedStorage.Shared.VoicePicker)
 local WeaponCatalog = require(ReplicatedStorage.Shared.WeaponCatalog)
 local Hold = require(script.Parent.Hold)
 local Ownership = require(script.Parent.Ownership)
+local Passes = require(script.Parent.Passes)
 local RateLimiter = require(script.Parent.RateLimiter)
 local SpawnService = require(script.Parent.SpawnService)
 local ToolService = require(script.Parent.ToolService)
@@ -425,16 +426,21 @@ local function ownedCount(player: Player): (number, number)
 	return mine, total
 end
 
+local function npcCap(player: Player): number
+	return if Passes.has(player, "npc_pack") then Config.VIP_NPC_CAP else Config.NPC_PLAYER_CAP
+end
+
 local function canSpawn(player: Player): boolean
 	local mine, total = ownedCount(player)
-	if mine >= Config.NPC_PLAYER_CAP then
-		notify(player, `NPC limit reached ({Config.NPC_PLAYER_CAP}). Remove some first.`)
+	local cap = npcCap(player)
+	if mine >= cap then
+		notify(player, `NPC limit reached ({cap}). Remove some first.`)
 		return false
 	elseif total >= Config.NPC_SERVER_CAP then
 		notify(player, "This server is full of NPCs.")
 		return false
 	elseif not Ownership.canSpawn(player) then
-		notify(player, `Prop limit reached ({Config.PROP_CAP}). Remove some first.`)
+		notify(player, `Prop limit reached ({Ownership.cap(player)}). Remove some first.`)
 		return false
 	end
 	return true
