@@ -36,8 +36,8 @@ function SpawnMenu.init()
 
 	local gui = make("ScreenGui", { Name = "SandboxMenu", ResetOnSpawn = false }, player:WaitForChild("PlayerGui"))
 
-	-- Spawn list window
-	local window = Ui.window("Spawn", gui, false, {
+	-- Spawn list window (closable so touch and gamepad can dismiss it without the Q key)
+	local window = Ui.window("Spawn", gui, true, {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 16, 0.5, 0),
 		Size = UDim2.new(0, 270, 0.7, 0),
@@ -45,6 +45,11 @@ function SpawnMenu.init()
 	})
 	local panel = window.frame
 	make("UISizeConstraint", { MinSize = Vector2.new(230, 260), MaxSize = Vector2.new(320, 660) }, panel)
+	if window.close then
+		window.close.Activated:Connect(function()
+			panel.Visible = false
+		end)
+	end
 
 	-- Props and NPCs are tabs; each tab is its own list so a row's own Visible (locked, secret) is never fought over.
 	local listProps = { Position = UDim2.fromOffset(0, 32), Size = UDim2.new(1, 0, 1, -72) }
@@ -190,7 +195,8 @@ function SpawnMenu.init()
 		TextStrokeTransparency = 0.6,
 	})
 	local function updateHud()
-		local count = player:GetAttribute(Config.COUNT_ATTRIBUTE) or 0
+		local raw = player:GetAttribute(Config.COUNT_ATTRIBUTE)
+		local count = if typeof(raw) == "number" then raw else 0
 		local cap = if player:GetAttribute(PassCatalog.attribute("builder_plus")) == true
 			then Config.VIP_PROP_CAP
 			else Config.PROP_CAP

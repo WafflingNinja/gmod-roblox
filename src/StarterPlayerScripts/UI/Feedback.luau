@@ -2,6 +2,7 @@
 -- Small text box that sends one message to the server. The server rate limits and cleans it.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(script.Parent.Parent.Net)
 local Ui = require(script.Parent.Ui)
@@ -82,6 +83,12 @@ local function build(): (Frame, TextBox)
 	if window.close then
 		window.close.Activated:Connect(close)
 	end
+	-- Escape or gamepad B dismisses the window, like any other dialog here.
+	UserInputService.InputBegan:Connect(function(pressed: InputObject)
+		if frame.Visible and (pressed.KeyCode == Enum.KeyCode.Escape or pressed.KeyCode == Enum.KeyCode.ButtonB) then
+			close()
+		end
+	end)
 	return frame, input
 end
 

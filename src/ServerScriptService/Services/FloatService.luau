@@ -11,7 +11,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local INTERVAL = 0.1 -- seconds between water checks
 local DAMPING = 2 -- per second, on vertical speed while in water
-local SAMPLE_OFFSETS = { -1, 0, 1 } -- studs from the centre, along world Y
+local SAMPLE_OFFSETS = { Vector3.new(0, -1, 0), Vector3.new(0, 0, 0), Vector3.new(0, 1, 0) } -- from the centre, along world Y
 local VOXEL = 4
 
 local function inWater(position: Vector3): boolean
@@ -45,7 +45,7 @@ local function update(part: BasePart)
 	end
 	local submerged = 0
 	for _, offset in SAMPLE_OFFSETS do
-		if inWater(part.Position + Vector3.new(0, offset, 0)) then
+		if inWater(part.Position + offset) then
 			submerged += 1
 		end
 	end

@@ -64,9 +64,11 @@ function GravityGunService.init()
 		if not limiter:consume(player, 1) then
 			return
 		end
-		-- Pulling again while holding drops the prop.
+		-- Pulling again while holding drops the prop. A nil target is the client's stale prediction: its held
+		-- prop was removed and it is just letting go, so drop without a tool check (the check would leave the
+		-- server hold stuck on a hole the moment the gun is put away).
 		if Hold.get(player) then
-			if Validate.equippedTool(player, Config.GRAVGUN) then
+			if target == nil or Validate.equippedTool(player, Config.GRAVGUN) then
 				Hold.release(player)
 			end
 			return

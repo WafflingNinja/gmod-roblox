@@ -42,8 +42,9 @@ type FacePick = { part: BasePart, id: Enum.NormalId, normal: Vector3, point: Vec
 local pickRemote = ReplicatedStorage.Remotes.PickMap :: RemoteEvent
 local limiter = RateLimiter.new(Config.MAP_BUCKET_CAPACITY, Config.MAP_REFILL_PER_SECOND)
 local vipPoints: { [string]: Vector3 } = {}
+local spawnCache: { [string]: Vector3 } = {}
 
-local function spawnPoint(def: MapCatalog.MapDef): Vector3?
+local function computeSpawnPoint(def: MapCatalog.MapDef): Vector3?
 	if not def.model then
 		local pad = Workspace:FindFirstChild("SpawnPad")
 		return if pad and pad:IsA("BasePart") then pad.Position else nil
@@ -74,6 +75,18 @@ local function spawnPoint(def: MapCatalog.MapDef): Vector3?
 	local above = Workspace:Raycast(point, Vector3.yAxis * 120, params)
 	if above and above.Normal.Y < -0.5 then
 		return above.Position + Vector3.yAxis * 4
+	end
+	return point
+end
+
+local function spawnPoint(def: MapCatalog.MapDef): Vector3?
+	local cached = spawnCache[def.id]
+	if cached then
+		return cached
+	end
+	local point = computeSpawnPoint(def)
+	if point then
+		spawnCache[def.id] = point
 	end
 	return point
 end
@@ -246,6 +259,15 @@ local function fillWater(def: MapCatalog.MapDef)
 	Workspace.Terrain.WaterWaveSize = 0.08
 end
 
+local FACE_NORMALS: { [Enum.NormalId]: Vector3 } = {
+	[Enum.NormalId.Front] = Vector3.FromNormalId(Enum.NormalId.Front),
+	[Enum.NormalId.Back] = Vector3.FromNormalId(Enum.NormalId.Back),
+	[Enum.NormalId.Left] = Vector3.FromNormalId(Enum.NormalId.Left),
+	[Enum.NormalId.Right] = Vector3.FromNormalId(Enum.NormalId.Right),
+	[Enum.NormalId.Top] = Vector3.FromNormalId(Enum.NormalId.Top),
+	[Enum.NormalId.Bottom] = Vector3.FromNormalId(Enum.NormalId.Bottom),
+}
+
 local OPPOSITE: { [Enum.NormalId]: Enum.NormalId } = {
 	[Enum.NormalId.Front] = Enum.NormalId.Back,
 	[Enum.NormalId.Back] = Enum.NormalId.Front,
@@ -265,7 +287,7 @@ local function nearestFace(model: Instance, target: Vector3): FacePick?
 		if part:IsA("BasePart") and part.Name ~= "Mirror" and part.Name ~= "MirrorFrame" then
 			local localTarget = part.CFrame:PointToObjectSpace(target)
 			for _, id in FACES do
-				local localNormal = Vector3.FromNormalId(id)
+				local localNormal = FACE_NORMALS[id]
 				local extent = math.abs(localNormal.X) * part.Size.X
 					+ math.abs(localNormal.Y) * part.Size.Y
 					+ math.abs(localNormal.Z) * part.Size.Z
@@ -302,7 +324,7 @@ end
 -- The face on the other side of the same wall, so a two-sided room gets a mirror whichever side you stand on.
 local function oppositeFace(pick: FacePick): FacePick?
 	local id = OPPOSITE[pick.id]
-	local localNormal = Vector3.FromNormalId(id)
+	local localNormal = FACE_NORMALS[id]
 	local part = pick.part
 	local extent = math.abs(localNormal.X) * part.Size.X
 		+ math.abs(localNormal.Y) * part.Size.Y
@@ -404,8 +426,9 @@ end
 local SOLID_WATER_WORDS = { "heater", "tower", "pipe", "tank", "melon", "bottle", "cooler", "pump", "tap" }
 
 -- "water" must start a word (water_01, Pool_Water) and not be a solid prop (water_heater, watertower).
-local function isWaterMesh(name: string): boolean
-	local lower = string.lower(name)
+-- Takes an already-lowered name: polishLook computes one lowercase per part and passes it here to avoid
+-- lowering the same string twice over every part in a map.
+local function isWaterMesh(lower: string): boolean
 	if not (string.find(lower, "^water") or string.find(lower, "[^%a]water")) then
 		return false
 	end
@@ -426,7 +449,7 @@ local function polishLook(model: Instance, floorY: number?)
 		if descendant:IsA("BasePart") then
 			local part: BasePart = descendant
 			local name = string.lower(part.Name)
-			if part:IsA("MeshPart") and isWaterMesh(part.Name) then
+			if part:IsA("MeshPart") and isWaterMesh(name) then
 				local mesh = part :: MeshPart
 				mesh.Material = Enum.Material.Glass
 				mesh.Transparency = 0.35
@@ -555,7 +578,6 @@ function MapService.init()
 				end
 			end
 		end
-		cleanBadAssets(maps)
 		-- Old servers tagged whatever part was nearest the mirror point, and a saved place can still carry that
 		-- tag on a 155-stud collision box. Only panels inside MirrorPanels are real mirrors.
 		for _, tagged in CollectionService:GetTagged(Config.MIRROR_TAG) do
@@ -566,6 +588,7 @@ function MapService.init()
 		for _, def in MapCatalog.list do
 			local model = def.model and maps:FindFirstChild(def.model)
 			if model then
+				cleanBadAssets(model)
 				addFloor(def, model)
 				fillWater(def)
 				local stand = spawnPoint(def)

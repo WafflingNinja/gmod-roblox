@@ -103,8 +103,10 @@ local list: { MapDef } = {
 local byId: { [string]: MapDef } = {}
 local byPlaceId: { [number]: MapDef } = {}
 for _, def in list do
+	assert(byId[def.id] == nil, `MapCatalog: duplicate id {def.id}`)
 	byId[def.id] = def
 	if def.placeId then
+		assert(byPlaceId[def.placeId] == nil, `MapCatalog: duplicate placeId {def.placeId}`)
 		byPlaceId[def.placeId] = def
 	end
 end

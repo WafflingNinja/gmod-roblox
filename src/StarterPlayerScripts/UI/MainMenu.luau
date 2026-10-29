@@ -95,10 +95,22 @@ local WEB = {
 	radius = UDim.new(0, 5),
 }
 
+-- One live tween per instance: a new tween on the same instance cancels the old one, so rapid toggles
+-- (curtain, dialog pop) never leave two tweens fighting over one property.
+local liveTweens: { [Instance]: Tween } = {}
+
 local function tween(instance: Instance, seconds: number, goal: { [string]: any }, style: Enum.EasingStyle?)
-	TweenService
-		:Create(instance, TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal)
-		:Play()
+	local previous = liveTweens[instance]
+	if previous then
+		previous:Cancel()
+	end
+	local running = TweenService:Create(
+		instance,
+		TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		goal
+	)
+	liveTweens[instance] = running
+	running:Play()
 end
 
 local function merge(base: { [string]: any }, extra: { [string]: any }?): { [string]: any }
@@ -239,6 +251,8 @@ local function infoPage(name: string, parent: Instance): Frame
 		PaddingLeft = UDim.new(0, 16),
 		PaddingRight = UDim.new(0, 16),
 	}, frame)
+	-- showDialog pops this open (Scale 0.9 -> 1); without it the page would just blink on.
+	make("UIScale", { Scale = 1 }, frame)
 	return frame
 end
 
@@ -467,6 +481,7 @@ function MainMenu.init()
 	local allLinks: { TextButton } = {}
 	local openDialog: string? = nil
 	local function showDialog(name: string?)
+		local previous = openDialog
 		openDialog = name
 		for dialogName, frame in dialogs do
 			local opening = dialogName == name and not frame.Visible
@@ -483,6 +498,15 @@ function MainMenu.init()
 		-- Gmod's New Game page replaces the menu links; the other pages sit beside them.
 		left.Visible = name ~= "Start Game"
 		backButton.Visible = name ~= nil
+		-- A gamepad needs a focused control: the first button on the page, or the link that opened it back.
+		if UserInputService.GamepadEnabled and root.Visible then
+			local frame = if name then dialogs[name] else nil
+			if frame then
+				GuiService.SelectedObject = frame:FindFirstWhichIsA("GuiButton", true)
+			elseif previous then
+				GuiService.SelectedObject = linkButtons[previous] or allLinks[1]
+			end
+		end
 	end
 	-- Gmod main menu: plain white text, no boxes, a soft shadow so it reads over any map. Each link gets a
 	-- small flat icon so the column reads at a glance.
@@ -570,7 +594,9 @@ function MainMenu.init()
 	local function hideOtherGuis(hide: boolean)
 		if not hide then
 			for _, other in hidden do
-				other.Enabled = true
+				if other.Parent then
+					other.Enabled = true
+				end
 			end
 			table.clear(hidden)
 			return
@@ -591,6 +617,7 @@ function MainMenu.init()
 		pageArea
 	)
 	dialogs["Start Game"] = playFrame
+	make("UIScale", { Scale = 1 }, playFrame)
 	local mapPanel = make("Frame", {
 		Position = UDim2.fromOffset(16, 16),
 		Size = UDim2.new(1, -272, 1, -32),
@@ -729,8 +756,11 @@ function MainMenu.init()
 		categoryCount.Text = tostring(shown)
 	end
 	local function selectMap(id: string)
-		selected = id
 		local def = MapCatalog.byId[id]
+		if not def then
+			return
+		end
+		selected = id
 		local current = player:GetAttribute(Config.MAP_ATTRIBUTE)
 		detailName.Text = def.name
 		detailHere.Text = if current == id then "You are here" else ""
@@ -989,7 +1019,8 @@ function MainMenu.init()
 	end
 
 	local function refreshCurrent()
-		local def = MapCatalog.byId[player:GetAttribute(Config.MAP_ATTRIBUTE) :: string]
+		local id = player:GetAttribute(Config.MAP_ATTRIBUTE)
+		local def = if typeof(id) == "string" then MapCatalog.byId[id] else nil
 		currentLine.Text = if def then `Current map: {def.name}` else ""
 	end
 	player:GetAttributeChangedSignal(Config.MAP_ATTRIBUTE):Connect(refreshCurrent)
@@ -1054,6 +1085,15 @@ function MainMenu.init()
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if not processed and input.KeyCode == Enum.KeyCode.M then
 			setOpen(not root.Visible)
+		end
+		-- Gamepad B: close the open page first, then the menu itself.
+		if not processed and root.Visible and input.KeyCode == Enum.KeyCode.ButtonB then
+			if openDialog then
+				showDialog(nil)
+			else
+				setOpen(false)
+			end
+			return
 		end
 		if not root.Visible or input.UserInputType ~= Enum.UserInputType.Keyboard then
 			return

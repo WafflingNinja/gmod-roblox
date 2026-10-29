@@ -1,5 +1,6 @@
 --!strict
 -- Client sends intent (prop id + aim point). Server derives everything else.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -70,7 +71,11 @@ function SpawnService.init()
 			return
 		end
 		local root = Validate.aliveRoot(player)
-		if not root or (position - root.Position).Magnitude > Config.SPAWN_RANGE then
+		if not root then
+			return
+		end
+		if (position - root.Position).Magnitude > Config.SPAWN_RANGE then
+			notify(player, "Too far away.")
 			return
 		end
 		if not Ownership.canSpawn(player) then
@@ -103,6 +108,14 @@ function SpawnService.init()
 		end
 		if target:IsA("BasePart") then
 			Sfx.playAt("remove", target.Position)
+		end
+		-- An NPC's owned part is its root; removing that must not leave a headless body behind.
+		if target:IsA("BasePart") and target.Name == "HumanoidRootPart" then
+			local model = target.Parent
+			if model and model:IsA("Model") and CollectionService:HasTag(model, Config.NPC_TAG) then
+				model:Destroy()
+				return
+			end
 		end
 		target:Destroy()
 	end)

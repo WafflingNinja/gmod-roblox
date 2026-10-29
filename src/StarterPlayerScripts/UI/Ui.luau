@@ -98,11 +98,27 @@ function Ui.button(text: string, parent: Instance, primary: boolean, props: { [s
 	)
 	make("UICorner", { CornerRadius = THEME.radius }, b)
 	make("UIStroke", { Color = THEME.border, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+	-- Hover and gamepad/keyboard focus share the hover tint, so selection is always visible.
+	local hovering = false
+	local focused = false
+	local function paint()
+		b.BackgroundColor3 = if hovering or focused then hover else idle
+	end
 	b.MouseEnter:Connect(function()
-		b.BackgroundColor3 = hover
+		hovering = true
+		paint()
 	end)
 	b.MouseLeave:Connect(function()
-		b.BackgroundColor3 = idle
+		hovering = false
+		paint()
+	end)
+	b.SelectionGained:Connect(function()
+		focused = true
+		paint()
+	end)
+	b.SelectionLost:Connect(function()
+		focused = false
+		paint()
 	end)
 	return b
 end
@@ -133,19 +149,31 @@ function Ui.row(text: string, parent: Instance, order: number, props: { [string]
 		parent
 	)
 	make("UIPadding", { PaddingLeft = UDim.new(0, 10) }, b)
+	local hovering = false
+	local function paint()
+		b.BackgroundColor3 = if selected then THEME.selection elseif hovering then THEME.rowHover else base
+	end
 	b.MouseEnter:Connect(function()
-		if not selected then
-			b.BackgroundColor3 = THEME.rowHover
-		end
+		hovering = true
+		paint()
 	end)
 	b.MouseLeave:Connect(function()
-		b.BackgroundColor3 = if selected then THEME.selection else base
+		hovering = false
+		paint()
+	end)
+	b.SelectionGained:Connect(function()
+		hovering = true
+		paint()
+	end)
+	b.SelectionLost:Connect(function()
+		hovering = false
+		paint()
 	end)
 	return {
 		button = b,
 		setSelected = function(on: boolean)
 			selected = on
-			b.BackgroundColor3 = if on then THEME.selection else base
+			paint()
 			b.TextColor3 = if on then THEME.selectionText else THEME.text
 		end,
 	}
@@ -359,7 +387,11 @@ function Ui.tooltip(target: GuiObject, text: string)
 		local mouse = UserInputService:GetMouseLocation()
 		local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
 		local x = math.min(mouse.X + 14, viewport.X - tip.AbsoluteSize.X - 4)
-		tip.Position = UDim2.fromOffset(math.max(x, 4), mouse.Y + 18)
+		local y = math.min(mouse.Y + 18, viewport.Y - tip.AbsoluteSize.Y - 4)
+		tip.Position = UDim2.fromOffset(math.max(x, 4), math.max(y, 4))
+	end
+	local function hide()
+		tooltipLabel().Visible = false
 	end
 	target.MouseEnter:Connect(function()
 		local tip = tooltipLabel()
@@ -368,9 +400,9 @@ function Ui.tooltip(target: GuiObject, text: string)
 		follow()
 	end)
 	target.MouseMoved:Connect(follow)
-	target.MouseLeave:Connect(function()
-		tooltipLabel().Visible = false
-	end)
+	target.MouseLeave:Connect(hide)
+	-- A target that dies while hovered would leave the tooltip stuck on screen.
+	target.Destroying:Once(hide)
 end
 
 return Ui

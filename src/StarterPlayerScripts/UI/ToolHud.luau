@@ -275,7 +275,8 @@ function ToolHud.createToolgunPanel(
 			for modeId, row in rows do
 				row.setSelected(modeId == id)
 			end
-			hint.Text = ToolModes.byId[id].hint
+			local mode = ToolModes.byId[id]
+			hint.Text = if mode then mode.hint else ""
 			swatches.Visible = id == "Paint"
 			dupes.Visible = id == "Dupe"
 		end,

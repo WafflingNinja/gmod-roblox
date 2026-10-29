@@ -45,6 +45,16 @@ function Hold.isHeld(prop: BasePart): boolean
 	return false
 end
 
+-- Let go of this player's hold. A nil prop is a plain release (the normal LMB-up path); a prop is a targeted
+-- release for stale client predictions, so a late release for an old prop can never drop a newer hold. Only the
+-- caller's own hold is ever touched.
+function Hold.releaseAny(player: Player, prop: BasePart?)
+	local hold = holds[player]
+	if hold and (prop == nil or hold.prop == prop) then
+		Hold.release(player)
+	end
+end
+
 function Hold.release(player: Player)
 	local hold = holds[player]
 	if not hold then
@@ -137,7 +147,15 @@ function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color
 		tool.Unequipped:Connect(function()
 			Hold.release(player)
 		end),
+		-- A Tool destroyed while equipped never fires Unequipped.
+		tool.Destroying:Connect(function()
+			Hold.release(player)
+		end),
 		prop.Destroying:Connect(function()
+			Hold.release(player)
+		end),
+		-- Covers respawn/refresh teardown, where Died never fires.
+		player.CharacterRemoving:Connect(function()
 			Hold.release(player)
 		end),
 	}
@@ -165,8 +183,11 @@ end
 
 function Hold.init()
 	aimRemote.OnServerEvent:Connect(function(player: Player, aim: unknown)
+		if not aimLimiter:consume(player, 1) then
+			return
+		end
 		local hold = holds[player]
-		if not hold or not aimLimiter:consume(player, 1) then
+		if not hold then
 			return
 		end
 		if typeof(aim) ~= "CFrame" or not Validate.isFiniteCFrame(aim) then
@@ -187,6 +208,9 @@ function Hold.init()
 	-- The holder simulates the prop, so check it stayed within reach; past that it was moved by hand, not the hold.
 	RunService.Heartbeat:Connect(function()
 		for player, hold in holds do
+			if holds[player] ~= hold then
+				continue -- released by one of this loop's drops; never touch a newer hold
+			end
 			local root = Validate.aliveRoot(player)
 			if root and (hold.prop.Position - root.Position).Magnitude > hold.reach + Config.HOLD_SLACK then
 				local prop = hold.prop

@@ -448,7 +448,58 @@ local list: { PropDef } = {
 
 local byId: { [string]: PropDef } = {}
 for _, def in list do
+	assert(byId[def.id] == nil, `PropCatalog: duplicate id {def.id}`)
 	byId[def.id] = def
+end
+
+-- Field-shape invariants PropBuilder, VehicleService and SpawnService rely on. Checked at require
+-- so a bad entry fails at boot (where the lune specs would catch it in CI) instead of at the first
+-- spawn that happens to touch the broken def.
+local function triple(where: string, t: { number })
+	assert(#t == 3, `PropCatalog: {where} needs 3 numbers`)
+	for _, v in t do
+		assert(type(v) == "number", `PropCatalog: {where} must be numbers`)
+	end
+end
+
+for _, def in list do
+	assert(type(def.id) == "string" and def.id ~= "", "PropCatalog: id")
+	assert(type(def.name) == "string" and def.name ~= "", `PropCatalog: {def.id} needs a name`)
+	assert(type(def.category) == "string" and def.category ~= "", `PropCatalog: {def.id} needs a category`)
+	assert(
+		def.shape == "Block" or def.shape == "Ball" or def.shape == "Cylinder" or def.shape == "Wedge",
+		`PropCatalog: {def.id} bad shape`
+	)
+	triple(`{def.id} size`, def.size)
+	triple(`{def.id} color`, def.color)
+	for _, v in def.size do
+		assert(v > 0, `PropCatalog: {def.id} size must be positive`)
+	end
+	if def.details then
+		for i, detail in def.details do
+			local where = `{def.id} detail {i}`
+			assert(
+				detail.shape == "Block" or detail.shape == "Ball" or detail.shape == "Cylinder",
+				`PropCatalog: {where} bad shape`
+			)
+			triple(`{where} size`, detail.size)
+			triple(`{where} offset`, detail.offset)
+			triple(`{where} color`, detail.color)
+			local rot = detail.rot
+			if rot then
+				triple(`{where} rot`, rot)
+			end
+		end
+	end
+	if def.vehicle then
+		local vehicle = def.vehicle
+		triple(`{def.id} vehicle seat`, vehicle.seat)
+		assert(byId[vehicle.wheel] ~= nil, `PropCatalog: {def.id} mounts unknown wheel {vehicle.wheel}`)
+		assert(#vehicle.wheels >= 3, `PropCatalog: {def.id} needs 3+ wheels`)
+		for i, mount in vehicle.wheels do
+			triple(`{def.id} wheel {i}`, mount.position)
+		end
+	end
 end
 
 local PropCatalog = {}
@@ -460,7 +511,11 @@ PropCatalog.byId = byId
 function PropCatalog.halfHeight(def: PropDef): number
 	local vehicle = def.vehicle
 	if vehicle then
-		return byId[vehicle.wheel].size[2] / 2 - vehicle.wheels[1].position[2]
+		local wheel = byId[vehicle.wheel]
+		local mount = vehicle.wheels[1]
+		if wheel and mount then
+			return wheel.size[2] / 2 - mount.position[2]
+		end
 	end
 	if def.shape == "Cylinder" and def.upright then
 		return def.size[1] / 2

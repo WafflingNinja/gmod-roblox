@@ -37,18 +37,24 @@ function ToolController.init()
 		ToolHud.select(if typeof(instance) == "Instance" then instance else nil)
 	end)
 
+	-- Only send real state changes: no repeat "true" while the key is held, and a stray "false" after death
+	-- (the server turns the thrusters off itself when the character goes).
+	local thrusterHeld = false
 	UserInputService.InputBegan:Connect(function(input, processed)
-		if not processed and input.KeyCode == THRUSTER_KEY then
+		if not processed and input.KeyCode == THRUSTER_KEY and not thrusterHeld then
+			thrusterHeld = true
 			thrusters:FireServer(true)
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == THRUSTER_KEY then
+		if input.KeyCode == THRUSTER_KEY and thrusterHeld then
+			thrusterHeld = false
 			thrusters:FireServer(false)
 		end
 	end)
 
 	local function watch(character: Model)
+		thrusterHeld = false -- the server cleared them with the old character
 		local stops: { [Instance]: () -> () } = {}
 
 		local function equipped(child: Instance)

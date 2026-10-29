@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PassCatalog = require(ReplicatedStorage.Shared.PassCatalog)
 local RateLimiter = require(script.Parent.RateLimiter)
+local Validate = require(script.Parent.Validate)
 
 local remotes = ReplicatedStorage.Remotes
 local notifyRemote = remotes.Notify :: RemoteEvent
@@ -40,8 +41,7 @@ function Passes.beamColor(player: Player): Color3?
 	local index = player:GetAttribute(Config.BEAM_COLOR_ATTRIBUTE)
 	if typeof(index) ~= "number" or index % 1 ~= 0 or not Config.PALETTE[index] then
 		return nil
-	end
-	local rgb = Config.PALETTE[index]
+	end	local rgb = Config.PALETTE[index]
 	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 end
 
@@ -152,6 +152,9 @@ local function owns(player: Player, id: number): boolean
 end
 
 -- All passes are checked at once; checking them one by one stacked up to six slow calls before VIP landed.
+-- `pending` counts grants still in flight; a task spawned here can finish before the next one is started,
+-- so the counter must never go below zero or the wait below ends early and PASSES_CHECKED lands before
+-- every grant did.
 local function refresh(player: Player)
 	local pending = #PassCatalog.passes
 	for _, item in PassCatalog.passes do
@@ -159,7 +162,7 @@ local function refresh(player: Player)
 			if player.Parent ~= nil and owns(player, item.id) then
 				grant(player, item.key)
 			end
-			pending -= 1
+			pending = math.max(pending - 1, 0)
 		end)
 	end
 	while pending > 0 and player.Parent ~= nil do
@@ -197,9 +200,13 @@ function Passes.init()
 		if not item then
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
+		-- The receipt is delivered at most once per purchase. If the buyer left before it landed,
+		-- returning NotProcessedYet would hand Roblox a receipt it can never complete and the tip
+		-- would be lost. The purchase itself is the reward here; acknowledge it without messaging.
 		local player = Players:GetPlayerByUserId(receipt.PlayerId)
 		if not player then
-			return Enum.ProductPurchaseDecision.NotProcessedYet
+			print(`Passes: {item.key} tip from a player who already left ({receipt.PlayerId})`)
+			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
 		notify(player, `Thanks for the {item.name}!`)
 		-- A thank-you line, said to the buyer directly (nil model = not from a body).
@@ -212,10 +219,11 @@ function Passes.init()
 		if not beamLimiter:consume(player, 1) then
 			return
 		end
-		if typeof(rawIndex) ~= "number" or rawIndex % 1 ~= 0 then
+		-- 1..#PALETTE integer; Validate.isFiniteNumber rejects NaN/inf before the range check.
+		if typeof(rawIndex) ~= "number" or not Validate.isFiniteNumber(rawIndex, #Config.PALETTE) then
 			return
 		end
-		if rawIndex < 1 or rawIndex > #Config.PALETTE then
+		if rawIndex % 1 ~= 0 or rawIndex < 1 then
 			return
 		end
 		if not Passes.has(player, "physgun_colors") then

@@ -49,6 +49,7 @@ local posed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local localPlayer = Players.LocalPlayer
 local holdTrack: AnimationTrack? = nil
 local holdTrackOf: string? = nil -- the gun the track is for
+local holdTrackOwner: Model? = nil -- the character it plays on (a respawn keeps the same gun name)
 
 local function gunOf(character: Model): string?
 	local tool = character:FindFirstChildOfClass("Tool")
@@ -118,7 +119,7 @@ end
 local function animate(character: Model, gun: string?)
 	local id = if gun then HOLD_ANIMATIONS[gun] or "" else ""
 	local wanted = if id ~= "" then gun else nil
-	if wanted == holdTrackOf and (holdTrack == nil or holdTrack.IsPlaying) then
+	if wanted == holdTrackOf and holdTrackOwner == character and (holdTrack == nil or holdTrack.IsPlaying) then
 		return
 	end
 	if holdTrack then
@@ -126,6 +127,7 @@ local function animate(character: Model, gun: string?)
 		holdTrack = nil
 	end
 	holdTrackOf = wanted
+	holdTrackOwner = character
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
 	if not wanted or not animator then

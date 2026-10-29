@@ -26,8 +26,9 @@ local function setup(character: Model)
 		return
 	end
 	local hum = humanoid
-	local sprinting = false
-	local crouching = false
+	-- Keys can already be held when the body spawns (respawn mid-sprint); read them now so the state is right.
+	local sprinting = UserInputService:IsKeyDown(SPRINT_KEY)
+	local crouching = UserInputService:IsKeyDown(CROUCH_KEY)
 	local momentum = 0
 	local alive = true
 

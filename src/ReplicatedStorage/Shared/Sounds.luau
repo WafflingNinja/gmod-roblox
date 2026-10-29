@@ -30,4 +30,8 @@ local sounds: { [string]: SoundDef } = {
 	impact_heavy = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 0.35 },
 }
 
+for _, def in sounds do
+	table.freeze(def)
+end
+
 return table.freeze(sounds)

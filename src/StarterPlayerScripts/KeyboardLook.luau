@@ -59,6 +59,9 @@ function KeyboardLook.init()
 	)
 
 	RunService:BindToRenderStep("KeyboardLook", Enum.RenderPriority.Camera.Value - 1, function(dt: number)
+		if UserInputService:GetFocusedTextBox() then
+			table.clear(held) -- a TextBox can take focus while an arrow is held; stop turning at once
+		end
 		local turn = Vector2.zero
 		for key, direction in KEYS do
 			if held[key] then

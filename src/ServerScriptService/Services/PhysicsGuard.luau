@@ -19,16 +19,17 @@ local PhysicsGuard = {}
 -- ponytail: walks every tagged prop 10x per second (150 per player); bucket by assembly if it shows in profiles.
 local function check()
 	local now = os.clock()
+	local maxSpeed = Config.PROP_MAX_SPEED
 	for _, instance in CollectionService:GetTagged(Config.PROP_TAG) do
 		if not instance:IsA("BasePart") or instance.Anchored then
 			continue
 		end
 		local velocity = instance.AssemblyLinearVelocity
-		if velocity.Magnitude > Config.PROP_MAX_SPEED then
-			pcall(function()
-				instance:SetNetworkOwner(nil)
-			end)
-			instance.AssemblyLinearVelocity = velocity.Unit * Config.PROP_MAX_SPEED
+		local speed = velocity.Magnitude
+		if speed > maxSpeed then
+			-- One shared no-op harness instead of a fresh closure per hot prop.
+			pcall(instance.SetNetworkOwner, instance, nil)
+			instance.AssemblyLinearVelocity = velocity * (maxSpeed / speed)
 			reclaimed[instance] = now + RECLAIM_SECONDS
 		end
 	end
@@ -38,9 +39,7 @@ local function check()
 		elseif now >= at then
 			reclaimed[prop] = nil
 			if not prop.Anchored and not Hold.isHeld(prop) then
-				pcall(function()
-					prop:SetNetworkOwnershipAuto()
-				end)
+				pcall(prop.SetNetworkOwnershipAuto, prop)
 			end
 		end
 	end

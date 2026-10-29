@@ -23,7 +23,12 @@ end
 function Constraints.register(player: Player, constraint: Instance, props: { BasePart }, extras: { Instance }?)
 	counts[player] = Constraints.count(player) + 1
 	local propWatchers: { RBXScriptConnection } = {}
+	local seen: { [BasePart]: boolean } = {}
 	for _, prop in props do
+		if seen[prop] then
+			continue -- a self-link lists the same prop twice; one watcher is enough
+		end
+		seen[prop] = true
 		local set = byProp[prop]
 		if not set then
 			set = {}

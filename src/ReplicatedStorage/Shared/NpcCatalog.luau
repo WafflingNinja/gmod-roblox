@@ -79,7 +79,18 @@ local list: { NpcDef } = {
 
 local byId: { [string]: NpcDef } = {}
 for _, def in list do
+	assert(byId[def.id] == nil, `NpcCatalog: duplicate id {def.id}`)
 	byId[def.id] = def
+end
+
+-- Shape invariants NpcService reads. `gun` names a WeaponCatalog id; the cross-check lives in
+-- tests/ (shared modules cannot require each other under lune's path-based require).
+for _, def in list do
+	assert(type(def.voice) == "string" and def.voice ~= "", `NpcCatalog: {def.id} needs a voice`)
+	assert(def.gun == nil or type(def.gun) == "string", `NpcCatalog: {def.id} gun must be a WeaponCatalog id`)
+	for _, channel in { def.head, def.torso, def.arms, def.legs } do
+		assert(#channel == 3, `NpcCatalog: {def.id} colour needs 3 numbers`)
+	end
 end
 
 -- Pick weight per line id; anything missing is 1. The LFS joke plays 80% more often than his other idle lines.

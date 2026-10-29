@@ -24,7 +24,13 @@ local selectRemote = remotes.ToolSelect :: RemoteEvent
 local notifyRemote = remotes.Notify :: RemoteEvent
 
 type Use = { player: Player, tool: Tool, part: BasePart, point: Vector3, normal: Vector3, extra: unknown }
-type Pending = { mode: string, part: BasePart, point: Vector3, unequipped: RBXScriptConnection }
+type Pending = {
+	mode: string,
+	part: BasePart,
+	point: Vector3,
+	unequipped: RBXScriptConnection,
+	destroying: RBXScriptConnection,
+}
 type Thruster = { part: BasePart, emitter: ParticleEmitter }
 
 local pending: { [Player]: Pending } = {}
@@ -39,12 +45,24 @@ local function notify(player: Player, message: string)
 	notifyRemote:FireClient(player, message)
 end
 
-local function clearPending(player: Player)
+local function clearPending(player: Player, silent: boolean?)
 	local entry = pending[player]
 	if entry then
 		entry.unequipped:Disconnect()
+		entry.destroying:Disconnect()
 		pending[player] = nil
-		selectRemote:FireClient(player, nil)
+		if not silent then
+			selectRemote:FireClient(player, nil)
+		end
+	end
+end
+
+-- The first click's prop went away (undo, Clear, X tool): forget it and clear the selection highlight,
+-- so the next click starts a fresh pair instead of silently restarting.
+local function invalidatePending(player: Player, part: BasePart)
+	local entry = pending[player]
+	if entry and entry.part == part then
+		clearPending(player)
 	end
 end
 
@@ -56,6 +74,11 @@ local function beginPending(mode: string, use: Use)
 		part = use.part,
 		point = use.point,
 		unequipped = use.tool.Unequipped:Once(function()
+			if pending[use.player] == entry then
+				clearPending(use.player)
+			end
+		end),
+		destroying = use.part.Destroying:Once(function()
 			if pending[use.player] == entry then
 				clearPending(use.player)
 			end
@@ -273,6 +296,7 @@ handlers.Unweld = function(use)
 end
 
 handlers.Remove = function(use)
+	invalidatePending(use.player, use.part)
 	Sfx.playAt("remove", use.part.Position)
 	use.part:Destroy()
 end
@@ -292,9 +316,15 @@ function ToolgunService.init()
 			if not handler or not tool or not root then
 				return
 			end
-			if typeof(target) ~= "Instance" or not target:IsA("BasePart") then
-				return
-			end
+		if typeof(target) ~= "Instance" or not target:IsA("BasePart") then
+			return
+		end
+		-- A pending first click whose prop was unparented (ownership cleared, map change): drop it here too,
+		-- the Destroying check only covers actual destruction.
+		local waiting = pending[player]
+		if waiting and waiting.part ~= target and not waiting.part.Parent then
+			clearPending(player)
+		end
 			if not Ownership.isOwner(player, target) then
 				notify(player, "That prop is not yours.")
 				return

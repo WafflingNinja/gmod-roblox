@@ -52,6 +52,7 @@ type Npc = {
 	humanoid: Humanoid,
 	root: BasePart,
 	prompt: ProximityPrompt,
+	ragdoll: Model?, -- the body while ragdolled (the character's parts, dropped into another Model by the ragdoll)
 	mode: Mode,
 	home: Vector3,
 	health: number,
@@ -75,6 +76,7 @@ type Npc = {
 local npcs: { [Model]: Npc } = {}
 local voiceEnds: { number } = {} -- end times of lines playing anywhere, for the server-wide cap
 local avatarIds: { [string]: number } = {}
+local heartbeats: { [Model]: RBXScriptConnection } = {} -- per-NPC mover while ragdolled
 
 local spawnLimiter = RateLimiter.new(Config.NPC_BUCKET_CAPACITY, Config.NPC_REFILL_PER_SECOND)
 local promptLimiter = RateLimiter.new(Config.NPC_PROMPT_BUCKET_CAPACITY, Config.NPC_PROMPT_REFILL_PER_SECOND)
@@ -129,6 +131,26 @@ local function say(npc: Npc, category: string, force: boolean?)
 	npc.quietUntil = now + math.max(length, Config.NPC_VOICE_GAP)
 	table.insert(voiceEnds, now + length)
 	sayRemote:FireAllClients(npc.model, id)
+end
+
+local function stopMover(model: Model)
+	local mover = heartbeats[model]
+	if mover then
+		mover:Disconnect()
+		heartbeats[model] = nil
+	end
+end
+
+-- The model is gone (or on its way out): stop every watcher that can outlive it and take it out of the loop.
+-- Died only fires on death; destroy paths (undo, Clear, Remove) land here instead.
+local function retire(npc: Npc)
+	local model = npc.model
+	if npcs[model] ~= npc then
+		return
+	end
+	npcs[model] = nil
+	stopMover(model)
+	npc.prompt:Destroy()
 end
 
 local function nearestPlayer(position: Vector3, range: number): (Player?, BasePart?)
@@ -320,9 +342,23 @@ local function fight(npc: Npc, now: number): boolean
 	return true
 end
 
+-- While a ragdoll is swapped in (`npc.ragdoll`), keep the invisible Model at the body's torso so the prompt,
+-- the hold tools' Aim.prop and anything else anchored to the Model follow the body instead of freezing in air.
+local function followRagdoll(npc: Npc, torso: BasePart)
+	npc.root.CFrame = torso.CFrame
+end
+
 -- Grab / throw / get-up. True while the NPC is out of the NPC's own control.
 local function physics(npc: Npc, now: number): boolean
 	local root = npc.root
+	local ragdoll = npc.ragdoll
+	local body = ragdoll and ragdoll:FindFirstChild("Torso")
+	if ragdoll and body and body:IsA("BasePart") then
+		followRagdoll(npc, body)
+		return true
+	elseif ragdoll then
+		npc.ragdoll = nil -- the swap ended (or the body is gone)
+	end
 	local held = Hold.isHeld(root)
 	local speed = root.AssemblyLinearVelocity.Magnitude
 	if held ~= npc.held then
@@ -446,6 +482,20 @@ local function canSpawn(player: Player): boolean
 	return true
 end
 
+-- A leaver's NPCs go with them (Ownership destroys their roots), and every other NPC forgets them.
+local function cleanupOwner(player: Player)
+	for model, npc in npcs do
+		npc.greeted[player] = nil
+		if npc.angryAt == player then
+			npc.angryAt = nil
+		end
+		if npc.owner == player then
+			retire(npc)
+			model:Destroy()
+		end
+	end
+end
+
 local function promptText(npc: Npc)
 	npc.prompt.ActionText = if npc.mode == "follow" then "Stay" else "Follow"
 end
@@ -468,6 +518,7 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 		humanoid = humanoid,
 		root = root,
 		prompt = prompt,
+		ragdoll = nil,
 		mode = "wander",
 		home = root.Position,
 		health = humanoid.Health,
@@ -489,6 +540,16 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 	}
 	promptText(npc)
 
+	-- Only an armed NPC turns and fights back; the others keep running. The attribute is re-read here because
+	-- several shots can land between two think ticks and only the last shooter is tagged.
+	local function retaliate()
+		local attackerId = model:GetAttribute(Config.NPC_ATTACKER_ATTRIBUTE)
+		model:SetAttribute(Config.NPC_ATTACKER_ATTRIBUTE, nil)
+		local attacker = if typeof(attackerId) == "number" then Players:GetPlayerByUserId(attackerId) else nil
+		npc.angryAt = attacker or nearestPlayer(root.Position, ANGRY_RANGE)
+		npc.angryUntil = os.clock() + ANGRY_SECONDS
+	end
+
 	prompt.Triggered:Connect(function(who: Player)
 		if who ~= npc.owner or not promptLimiter:consume(who, 1) or humanoid.Health <= 0 then
 			return
@@ -508,12 +569,7 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 		if health < npc.health and health > 0 then
 			say(npc, "hurt")
 			if npc.gun then
-				-- Shoot back at whoever shot us (WeaponService tags it); otherwise at whoever is nearest.
-				local attackerId = model:GetAttribute(Config.NPC_ATTACKER_ATTRIBUTE)
-				model:SetAttribute(Config.NPC_ATTACKER_ATTRIBUTE, nil)
-				local attacker = if typeof(attackerId) == "number" then Players:GetPlayerByUserId(attackerId) else nil
-				npc.angryAt = attacker or nearestPlayer(root.Position, ANGRY_RANGE)
-				npc.angryUntil = os.clock() + ANGRY_SECONDS
+				retaliate() -- shoot back at whoever shot us (WeaponService tags it)
 				npc.health = health
 				return
 			end
@@ -527,8 +583,7 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 	end)
 	humanoid.Died:Connect(function()
 		say(npc, "death", true)
-		npcs[model] = nil
-		prompt:Destroy()
+		retire(npc)
 		task.delay(CORPSE_SECONDS, function()
 			model:Destroy()
 		end)
@@ -538,7 +593,36 @@ local function add(player: Player, def: NpcCatalog.NpcDef, model: Model)
 		model:Destroy()
 	end)
 	model.Destroying:Connect(function()
-		npcs[model] = nil
+		retire(npc)
+	end)
+	-- A ragdoll swaps a Model with joints for one without: watch for our own name (the body keeps it) coming
+	-- back under a different parent, and drive the invisible Model along with the torso until then.
+	local seen: { [Model]: boolean } = { [model] = true }
+	model.AncestryChanged:Connect(function()
+		if not model.Parent then
+			return -- teardown; retire drops the heartbeat
+		end
+		local torso = model:FindFirstChild("Torso")
+		local top = torso and torso:FindFirstAncestorOfClass("Model")
+		if not top or top == model or seen[top] then
+			return
+		end
+		seen[top] = true
+		npc.ragdoll = top
+		local mover: RBXScriptConnection? = heartbeats[model]
+		if not mover then
+			mover = RunService.Heartbeat:Connect(function()
+				if not npc.ragdoll then
+					stopMover(model)
+					return
+				end
+				local body = npc.ragdoll:FindFirstChild("Torso")
+				if body and body:IsA("BasePart") then
+					followRagdoll(npc, body)
+				end
+			end)
+			heartbeats[model] = mover
+		end
 	end)
 
 	Ownership.claim(player, root)
@@ -638,7 +722,8 @@ function NpcService.init()
 			return
 		end
 		player:SetAttribute(Config.SECRET_ATTRIBUTE, true)
-		local id = pickLine(NpcCatalog.byId.rostik.voice, "unlock", nil)
+		local rostik = NpcCatalog.byId.rostik
+		local id = if rostik then pickLine(rostik.voice, "unlock", nil) else nil
 		if id then
 			sayRemote:FireClient(player, nil, id)
 		end
@@ -664,8 +749,23 @@ function NpcService.init()
 		end
 		elapsed = 0
 		local now = os.clock()
+		-- Snapshot: a shot fired mid-loop can kill another NPC and clear it from `npcs`.
+		local queue: { Npc } = {}
 		for _, npc in npcs do
-			think(npc, now)
+			table.insert(queue, npc)
+		end
+		for _, npc in queue do
+			-- A model retired mid-loop (died, removed) must not think again; and one broken NPC must not stop
+			-- the others (and every later tick) from thinking.
+			local ok, err = pcall(function()
+				if npcs[npc.model] == npc then
+					think(npc, now)
+				end
+			end)
+			if not ok then
+				retire(npc)
+				warn(`Npc: think failed for {npc.model.Name}, removed from the loop: {err}`)
+			end
 		end
 	end)
 
@@ -673,11 +773,7 @@ function NpcService.init()
 	for _, player in Players:GetPlayers() do
 		task.spawn(loadUnlock, player)
 	end
-	Players.PlayerRemoving:Connect(function(player: Player)
-		for _, npc in npcs do
-			npc.greeted[player] = nil
-		end
-	end)
+	Players.PlayerRemoving:Connect(cleanupOwner)
 end
 
 return NpcService

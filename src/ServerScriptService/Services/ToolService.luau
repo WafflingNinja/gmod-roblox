@@ -416,7 +416,33 @@ function ToolService.buildWeapon(id: string): Tool?
 	return if def then buildModelTool(def.id, def.label, def.model, def.yaw, def.hold, def.magazine, def.scale) else nil
 end
 
+-- Tools given in StarterGear are copied into the Backpack on every respawn, so one give per player
+-- is enough. The clone into a live Backpack covers the join-after-spawn race. Duplicates (the player
+-- spawned between the StarterGear write and the clone) are trimmed so the selector never lists a tool
+-- twice.
+local function trimDuplicates(container: Instance?)
+	if not container then
+		return
+	end
+	local seen: { [string]: boolean } = {}
+	for _, child in container:GetChildren() do
+		if not child:IsA("Tool") then
+			continue
+		end
+		if seen[child.Name] then
+			child:Destroy()
+		else
+			seen[child.Name] = true
+		end
+	end
+end
+
 local function give(player: Player)
+	local starterGear = player:FindFirstChild("StarterGear") or player:WaitForChild("StarterGear", 10)
+	if not starterGear then
+		warn(`ToolService: no StarterGear for {player.Name}, skipping loadout`)
+		return
+	end
 	for _, entry in LOADOUT do
 		local tool = entry.build()
 		if not tool then
@@ -425,13 +451,15 @@ local function give(player: Player)
 		tool:SetAttribute(Config.SLOT_ATTRIBUTE, entry.slot)
 		tool:SetAttribute(Config.SLOT_ORDER_ATTRIBUTE, entry.order)
 		tool:SetAttribute(Config.LABEL_ATTRIBUTE, entry.label)
-		tool.Parent = player:WaitForChild("StarterGear")
+		tool.Parent = starterGear
 		-- StarterGear only reaches the backpack on the next spawn; cover a character that already exists.
 		local backpack = player:FindFirstChildOfClass("Backpack")
 		if player.Character and backpack then
 			tool:Clone().Parent = backpack
 		end
 	end
+	trimDuplicates(starterGear)
+	trimDuplicates(player:FindFirstChildOfClass("Backpack"))
 end
 
 function ToolService.init()

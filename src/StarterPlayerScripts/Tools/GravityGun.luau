@@ -64,9 +64,13 @@ function GravityGun.start(): () -> ()
 				end
 			elseif input.UserInputType == Enum.UserInputType.MouseButton1 and camera then
 				if holding then
-					punt:FireServer(holding, camera.CFrame.LookVector)
-					holding = nil
-					return
+					if not holding.Parent then
+						holding = nil -- the prop went away; fall through to a normal punt
+					else
+						punt:FireServer(holding, camera.CFrame.LookVector)
+						holding = nil
+						return
+					end
 				end
 				local hit = Aim.cast(Config.GRAVGUN_PUNT_RANGE)
 				local result = hit and hit.result
@@ -102,7 +106,10 @@ function GravityGun.start(): () -> ()
 	)
 
 	return function()
-		holding = nil -- the server releases on unequip
+		if holding then
+			-- The server releases on unequip; clear the local prediction too so re-equip starts clean.
+			holding = nil
+		end
 		ToolHud.setCrosshair(false)
 		for _, connection in connections do
 			connection:Disconnect()

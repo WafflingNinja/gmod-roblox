@@ -125,6 +125,11 @@ local passById: { [number]: Item } = {}
 local productById: { [number]: Item } = {}
 
 for _, item in list do
+	assert(byKey[item.key] == nil, `PassCatalog: duplicate key {item.key}`)
+	assert(
+		(item.kind == "pass" and passById[item.id] == nil) or (item.kind == "product" and productById[item.id] == nil),
+		`PassCatalog: duplicate id {item.id}`
+	)
 	byKey[item.key] = item
 	if item.kind == "pass" then
 		table.insert(passes, item)

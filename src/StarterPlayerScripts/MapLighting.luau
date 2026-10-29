@@ -83,13 +83,15 @@ local function play(instance: Instance, goals: { [string]: any }, seconds: numbe
 		end)
 		if ok then
 			table.insert(active, tween)
-			if onDone then
-				tween.Completed:Once(function(state)
-					if state == Enum.PlaybackState.Completed then
-						onDone()
-					end
-				end)
-			end
+			tween.Completed:Once(function(state)
+				local index = table.find(active, tween)
+				if index then
+					table.remove(active, index) -- finished tweens leave the list, so it cannot grow forever
+				end
+				if onDone and state == Enum.PlaybackState.Completed then
+					onDone()
+				end
+			end)
 			tween:Play()
 			return
 		end

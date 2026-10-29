@@ -118,6 +118,7 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 		end
 		local holding = false
 		local lastShot = 0
+		local lastReload = 0
 		local connections: { RBXScriptConnection } = {}
 
 		local function updateHud()
@@ -130,17 +131,32 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 			)
 		end
 
+		local function reloadNow()
+			local now = os.clock()
+			if now - lastReload < 1 then
+				return -- the server drops a whole empty magazine per second; don't send a storm of no-ops
+			end
+			lastReload = now
+			reloadRemote:FireServer(def.id)
+		end
+
 		local function shoot()
 			local camera = Workspace.CurrentCamera
 			local now = os.clock()
-			if not camera or now - lastShot < 60 / def.rpm or tool:GetAttribute(Config.RELOADING_ATTRIBUTE) then
+			-- The tool can sit in the character while the character is gone (death mid-equip); never fire then.
+			if
+				not camera
+				or tool.Parent ~= player.Character
+				or now - lastShot < 60 / def.rpm
+				or tool:GetAttribute(Config.RELOADING_ATTRIBUTE)
+			then
 				return
 			end
 			lastShot = now
 			local ammo = tool:GetAttribute(Config.AMMO_ATTRIBUTE)
 			if typeof(ammo) ~= "number" or ammo <= 0 then
 				Sfx.play("dry_fire")
-				reloadRemote:FireServer(def.id)
+				reloadNow()
 				holding = false
 				return
 			end
@@ -185,7 +201,7 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 					holding = true
 					shoot()
 				elseif input.KeyCode == Enum.KeyCode.R then
-					reloadRemote:FireServer(def.id)
+					reloadNow()
 				end
 			end)
 		)
@@ -201,7 +217,8 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 			table.insert(
 				connections,
 				RunService.RenderStepped:Connect(function()
-					if holding then
+					-- The character can die or despawn with the tool still "equipped"; stop firing then.
+					if holding and tool.Parent == player.Character then
 						shoot()
 					end
 				end)
@@ -212,6 +229,7 @@ function Gun.starter(def: WeaponCatalog.WeaponDef): () -> () -> ()
 		updateHud()
 
 		return function()
+			holding = false
 			for _, connection in connections do
 				connection:Disconnect()
 			end
