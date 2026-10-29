@@ -330,11 +330,16 @@ function ToolgunService.init()
 		end
 	end)
 
-	Players.PlayerAdded:Connect(function(player)
+	local function watch(player: Player)
 		player.CharacterRemoving:Connect(function()
 			setThrusters(player, false)
 		end)
-	end)
+	end
+	Players.PlayerAdded:Connect(watch)
+	-- Studio can have the local player in Players before this script starts.
+	for _, player in Players:GetPlayers() do
+		watch(player)
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		clearPending(player)
 		thrusters[player] = nil

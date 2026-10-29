@@ -16,12 +16,14 @@ local COOLDOWN = 0.2 -- seconds between sounds from one assembly
 local lastVelocity: { [BasePart]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
 local quietUntil: { [BasePart]: number } = setmetatable({}, { __mode = "k" }) :: any
 
+local seen: { [BasePart]: boolean } = {}
+
 local ImpactService = {}
 
 function ImpactService.init()
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
-		local seen: { [BasePart]: boolean } = {}
+		table.clear(seen)
 		for _, instance in CollectionService:GetTagged(Config.PROP_TAG) do
 			if not instance:IsA("BasePart") or instance.Anchored then
 				continue

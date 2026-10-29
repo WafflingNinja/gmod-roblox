@@ -22,6 +22,8 @@ local SWAY_LIMIT = math.rad(6)
 local SWAY_RETURN = 10 -- how fast the lag settles, per second
 local RIGHT_ARM = { "RightUpperArm", "RightLowerArm", "RightHand" }
 local LEFT_ARM = { "LeftUpperArm", "LeftLowerArm", "LeftHand" }
+local ONE_ARM = { RIGHT_ARM }
+local BOTH_ARMS = { RIGHT_ARM, LEFT_ARM }
 local SHOULDERS = { "RightShoulder", "LeftShoulder" }
 -- Two-handed tools (a LeftGrip on the handle), first person only: both shoulders move in, forward and down
 -- (torso space: +X right, +Y up, -Z forward). The gun sits nearer the middle, still pointing straight, and the
@@ -115,7 +117,7 @@ function FirstPerson.init()
 		)
 		-- The camera module hides the whole body in first person every frame; bring the arms back after it.
 		if holding then
-			for _, arm in (if twoHanded then { RIGHT_ARM, LEFT_ARM } else { RIGHT_ARM }) :: { { string } } do
+			for _, arm in (if twoHanded then BOTH_ARMS else ONE_ARM) :: { { string } } do
 				for _, name in arm do
 					local part = character:FindFirstChild(name)
 					if part and part:IsA("BasePart") then

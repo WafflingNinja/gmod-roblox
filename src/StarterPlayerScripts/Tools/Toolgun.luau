@@ -21,6 +21,7 @@ local function selectMode(id: string)
 	for index, mode in ToolModes.list do
 		if mode.id == id then
 			modeIndex = index
+			break
 		end
 	end
 	if panel then

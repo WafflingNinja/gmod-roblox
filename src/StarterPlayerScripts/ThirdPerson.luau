@@ -32,7 +32,13 @@ local ragdollCam = false -- floppy or dead: follow the torso instead of the head
 local ragdollForced = false -- third person was off when the ragdoll started, so it goes off again after
 local focus: Vector3? = nil -- smoothed point the camera looks at while following a ragdoll and for a moment after
 local FOCUS_SETTLE = 9 -- per second, how fast the focus glides back to the head after the ragdoll
+local BODY_REFRESH = 0.5 -- seconds between full-body transparency sweeps (new accessories, a new character)
 local FADE_NEAR = 2.5 -- studs; body parts closer to the camera than this fade out so it never sits inside one
+
+local bodyTimer = 0 -- counts down to the next setBodyHidden(false) sweep
+local bodyOf: Model? = nil
+local castParams = RaycastParams.new()
+castParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local ThirdPerson = {}
 
@@ -81,6 +87,7 @@ local function setActive(on: boolean)
 	end
 	active = on
 	focus = nil
+	bodyTimer = 0
 	local camera = Workspace.CurrentCamera
 	if on then
 		if camera then
@@ -173,7 +180,15 @@ local function update(dt: number)
 	else
 		eye = head.Position
 	end
-	setBodyHidden(false)
+	if bodyOf ~= character then
+		bodyOf = character
+		bodyTimer = 0
+	end
+	bodyTimer -= dt
+	if bodyTimer <= 0 then
+		bodyTimer = BODY_REFRESH
+		setBodyHidden(false)
+	end
 
 	-- Pull in when a wall is between the eye and the camera; ease back out when it's clear.
 	local wanted = rotation:VectorToWorldSpace(
@@ -182,14 +197,12 @@ local function update(dt: number)
 			elseif seat then SEAT_OFFSET
 			else FOOT_OFFSET
 	)
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
 	local ignore: { Instance } = { character :: Instance }
 	if vehicle then
 		table.insert(ignore, vehicle)
 	end
-	params.FilterDescendantsInstances = ignore
-	local hit = Workspace:Raycast(eye, wanted, params)
+	castParams.FilterDescendantsInstances = ignore
+	local hit = Workspace:Raycast(eye, wanted, castParams)
 	local clear = if hit then math.max(hit.Distance - WALL_GAP, 0.5) else wanted.Magnitude
 	distance = if clear < distance then clear else distance + (clear - distance) * math.min(1, dt * EASE_OUT)
 
@@ -209,6 +222,7 @@ function ThirdPerson.setRagdoll(on: boolean)
 		return
 	end
 	ragdollCam = on
+	bodyTimer = 0 -- clear the near-camera fade at once when the ragdoll ends
 	if on then
 		ragdollForced = not active
 		setActive(true)

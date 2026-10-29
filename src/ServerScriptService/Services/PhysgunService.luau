@@ -48,8 +48,11 @@ function PhysgunService.init()
 	end)
 
 	freezeRemote.OnServerEvent:Connect(function(player: Player)
+		if not grabLimiter:consume(player, 1) then
+			return
+		end
 		local prop = Hold.get(player)
-		if not prop or not grabLimiter:consume(player, 1) then
+		if not prop then
 			return
 		end
 		if not Validate.equippedTool(player, Config.PHYSGUN) then

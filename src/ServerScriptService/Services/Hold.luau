@@ -70,6 +70,7 @@ end
 
 -- `hum` is the Sounds name of the loop played while held.
 function Hold.start(player: Player, prop: BasePart, tool: Tool, beamColor: Color3, maxDistance: number, hum: string)
+	Hold.release(player) -- a second start would orphan the first hold's constraints and connections
 	prop.Anchored = false
 	pcall(function()
 		prop:SetNetworkOwner(player)

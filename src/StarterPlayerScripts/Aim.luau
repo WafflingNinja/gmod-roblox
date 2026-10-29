@@ -8,6 +8,8 @@ local player = Players.LocalPlayer
 export type Hit = { origin: Vector3, direction: Vector3, result: RaycastResult? }
 
 local ignored: Instance? = nil
+local castParams = RaycastParams.new()
+castParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local Aim = {}
 
@@ -24,17 +26,15 @@ function Aim.cast(range: number): Hit?
 	end
 	local viewport = camera.ViewportSize
 	local ray = camera:ViewportPointToRay(viewport.X / 2, viewport.Y / 2)
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
 	local filter: { Instance } = if player.Character then { player.Character } else {}
 	if ignored and ignored.Parent then
 		table.insert(filter, ignored)
 	end
-	params.FilterDescendantsInstances = filter
+	castParams.FilterDescendantsInstances = filter
 	return {
 		origin = ray.Origin,
 		direction = ray.Direction,
-		result = Workspace:Raycast(ray.Origin, ray.Direction * range, params),
+		result = Workspace:Raycast(ray.Origin, ray.Direction * range, castParams),
 	}
 end
 

@@ -16,6 +16,7 @@ local Validate = require(script.Parent.Validate)
 
 local SPREAD = 6 -- studs; players picking the same map don't stack
 local PASS_WAIT = 4 -- seconds a spawn waits for the join-time pass check (VIP pad)
+local SPAWN_LIFTS = { 4, 10, 24 } -- studs probed upward for a ceiling before dropping to the floor
 local VIP_PAD_SIZE = Vector3.new(8, 0.6, 8)
 local VIP_PAD_DROP = 3.2 -- studs above the pad a VIP is placed
 local VIP_PAD_OFFSETS = {
@@ -62,7 +63,7 @@ local function spawnPoint(def: MapCatalog.MapDef): Vector3?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { model }
-	for _, lift in { 4, 10, 24 } do
+	for _, lift in SPAWN_LIFTS do
 		local ceiling = Workspace:Raycast(point, Vector3.yAxis * lift, params)
 		local start = point + Vector3.yAxis * (if ceiling then math.max(ceiling.Distance - 1, 0) else lift)
 		local floor = Workspace:Raycast(start, Vector3.yAxis * -120, params)

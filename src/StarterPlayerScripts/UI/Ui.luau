@@ -224,7 +224,7 @@ function Ui.draggable(frame: GuiObject, handle: GuiObject)
 			startCorner = frame.AbsolutePosition
 		end
 	end)
-	UserInputService.InputChanged:Connect(function(input: InputObject)
+	local moved = UserInputService.InputChanged:Connect(function(input: InputObject)
 		local origin = dragStart
 		local parent = frame.Parent
 		if
@@ -244,10 +244,15 @@ function Ui.draggable(frame: GuiObject, handle: GuiObject)
 		frame.Position = startPosition
 			+ UDim2.fromOffset(math.clamp(delta.X, low.X, high.X), math.clamp(delta.Y, low.Y, high.Y))
 	end)
-	UserInputService.InputEnded:Connect(function(input: InputObject)
+	local ended = UserInputService.InputEnded:Connect(function(input: InputObject)
 		if isPress(input) then
 			dragStart = nil
 		end
+	end)
+	-- These two are global; drop them with the window.
+	frame.Destroying:Once(function()
+		moved:Disconnect()
+		ended:Disconnect()
 	end)
 end
 

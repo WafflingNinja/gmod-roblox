@@ -198,6 +198,9 @@ local function launch(player: Player, def: WeaponCatalog.WeaponDef, origin: Vect
 	})
 end
 
+local rocketParams = RaycastParams.new()
+rocketParams.FilterType = Enum.RaycastFilterType.Exclude
+
 -- One Heartbeat moves every rocket and sweeps a ray along its step.
 local function stepRockets(dt: number)
 	local now = os.clock()
@@ -205,15 +208,13 @@ local function stepRockets(dt: number)
 		local rocket = rockets[i]
 		local from = rocket.part.Position
 		local step = rocket.velocity * dt
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
 		local ignore: { Instance } = { rocket.part }
 		local character = rocket.owner.Character
 		if character then
 			table.insert(ignore, character)
 		end
-		params.FilterDescendantsInstances = ignore
-		local hit = Workspace:Raycast(from, step, params)
+		rocketParams.FilterDescendantsInstances = ignore
+		local hit = Workspace:Raycast(from, step, rocketParams)
 		if hit or now > rocket.expires or not rocket.owner.Parent then
 			table.remove(rockets, i)
 			explode(rocket, if hit then hit.Position else from)

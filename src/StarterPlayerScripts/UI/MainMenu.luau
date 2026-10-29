@@ -512,7 +512,7 @@ function MainMenu.init()
 			end
 		end)
 		b.MouseLeave:Connect(function()
-			b.TextColor3 = if linkButtons[label] and openDialog == label then LINK_ACTIVE else LINK_COLOR
+			b.TextColor3 = if openDialog == label then LINK_ACTIVE else LINK_COLOR
 			for _, shape in tint do
 				shape.BackgroundColor3 = LINK_COLOR
 			end
@@ -526,6 +526,7 @@ function MainMenu.init()
 	-- Camera circles the selected map while the menu is open.
 	local orbitAngle = 0
 	local orbitDef = MapCatalog.byId[MapCatalog.DEFAULT]
+	local orbitCenter = Vector3.zero -- set from orbitDef in selectMap, so the render step allocates nothing
 	local introStart: number? = nil
 	local function startOrbit()
 		RunService:BindToRenderStep("MenuOrbit", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
@@ -538,7 +539,7 @@ function MainMenu.init()
 				orbitAngle += dt * 2 * math.pi / ORBIT_SECONDS
 			end
 			local orbit = orbitDef.orbit
-			local center = Vector3.new(orbit.center[1], orbit.center[2], orbit.center[3])
+			local center = orbitCenter
 			local zoom = 1
 			if introStart and not GuiService.ReducedMotionEnabled then
 				local t = math.min((os.clock() - introStart) / INTRO_ZOOM_SECONDS, 1)
@@ -736,6 +737,7 @@ function MainMenu.init()
 		detailBlurb.Text = def.blurb
 		start.Text = if current == id then "Respawn here" else "Start"
 		orbitDef = def
+		orbitCenter = Vector3.new(def.orbit.center[1], def.orbit.center[2], def.orbit.center[3])
 		MapLighting.preview(id)
 		refreshTiles()
 	end
@@ -843,14 +845,21 @@ function MainMenu.init()
 		UserInputService.MouseDeltaSensitivity = v
 	end, 0.1, 0.1, 3)
 	stepper(optionsBody, 2, "Field of view", FirstPerson.fieldOfView, FirstPerson.setFieldOfView, 5, 60, 110)
-	local lookRow =
-		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 3 }, optionsBody)
-	ink("Arrow keys look around", lookRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local lookToggle = plainButton("", lookRow, {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.fromScale(1, 0.5),
-		Size = UDim2.fromOffset(140, 26),
-	})
+	-- "name   [state]" row; returns the button so the caller sets its text.
+	local function toggleRow(order: number, name: string): TextButton
+		local row = make("Frame", {
+			Size = UDim2.new(1, 0, 0, 34),
+			BackgroundTransparency = 1,
+			LayoutOrder = order,
+		}, optionsBody)
+		ink(name, row, { Size = UDim2.new(1, -150, 1, 0) })
+		return plainButton("", row, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromOffset(140, 26),
+		})
+	end
+	local lookToggle = toggleRow(3, "Arrow keys look around")
 	local function refreshLook()
 		lookToggle.Text = if KeyboardLook.isEnabled() then "On" else "Off (arrows walk)"
 	end
@@ -861,14 +870,7 @@ function MainMenu.init()
 	refreshLook()
 	stepper(optionsBody, 4, "Arrow-key look speed", KeyboardLook.speed, KeyboardLook.setSpeed, 0.5, 0.5, 6)
 	local pvpRemote = Net.event("SetPvp")
-	local pvpRow =
-		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 5 }, optionsBody)
-	ink("PvP (guns hurt players who also have it on)", pvpRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local pvpToggle = plainButton("", pvpRow, {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.fromScale(1, 0.5),
-		Size = UDim2.fromOffset(140, 26),
-	})
+	local pvpToggle = toggleRow(5, "PvP (guns hurt players who also have it on)")
 	local function refreshPvp()
 		pvpToggle.Text = if player:GetAttribute(Config.PVP_ATTRIBUTE) == true then "On" else "Off"
 	end

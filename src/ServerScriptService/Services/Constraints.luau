@@ -22,6 +22,7 @@ end
 -- (attachments and the like that only exist for it).
 function Constraints.register(player: Player, constraint: Instance, props: { BasePart }, extras: { Instance }?)
 	counts[player] = Constraints.count(player) + 1
+	local propWatchers: { RBXScriptConnection } = {}
 	for _, prop in props do
 		local set = byProp[prop]
 		if not set then
@@ -29,11 +30,17 @@ function Constraints.register(player: Player, constraint: Instance, props: { Bas
 			byProp[prop] = set
 		end
 		set[constraint] = true
-		prop.Destroying:Once(function()
-			constraint:Destroy()
-		end)
+		table.insert(
+			propWatchers,
+			prop.Destroying:Once(function()
+				constraint:Destroy()
+			end)
+		)
 	end
 	constraint.Destroying:Once(function()
+		for _, watcher in propWatchers do
+			watcher:Disconnect()
+		end
 		if counts[player] then
 			counts[player] = math.max(0, counts[player] - 1)
 		end
@@ -41,6 +48,9 @@ function Constraints.register(player: Player, constraint: Instance, props: { Bas
 			local set = byProp[prop]
 			if set then
 				set[constraint] = nil
+				if next(set) == nil then
+					byProp[prop] = nil
+				end
 			end
 		end
 		if extras then

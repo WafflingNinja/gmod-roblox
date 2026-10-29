@@ -83,7 +83,10 @@ function GravityGun.start(): () -> ()
 		RunService.RenderStepped:Connect(function(dt)
 			local camera = Workspace.CurrentCamera
 			local root = rootPart()
-			if not holding or not holding.Parent or not camera or not root then
+			if holding and not holding.Parent then
+				holding = nil -- the prop was removed; the next RMB pulls again instead of "dropping"
+			end
+			if not holding or not camera or not root then
 				return
 			end
 			local point = root.Position + EYE_OFFSET + camera.CFrame.LookVector * Config.GRAVGUN_HOLD_DISTANCE
