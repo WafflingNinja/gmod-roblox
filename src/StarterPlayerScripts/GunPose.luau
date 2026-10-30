@@ -49,6 +49,7 @@ local posed: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local localPlayer = Players.LocalPlayer
 local holdTrack: AnimationTrack? = nil
 local holdTrackOf: string? = nil -- the gun the track is for
+local holdTrackOwner: Model? = nil -- the character it plays on (a respawn keeps the same gun name)
 
 local function gunOf(character: Model): string?
 	local tool = character:FindFirstChildOfClass("Tool")
@@ -68,11 +69,15 @@ local GunPose = {}
 
 -- Extra rotation for `joint` of `character` (identity when no gun is out, or the hold is animated).
 function GunPose.offset(character: Model, joint: string): CFrame
-	local hold = holdOf(character)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if (joint == "LeftShoulder" and humanoid and humanoid.Sit) or animated(gunOf(character)) then
+	local gun = gunOf(character)
+	if not gun or animated(gun) then
 		return CFrame.identity
 	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if joint == "LeftShoulder" and humanoid and humanoid.Sit then
+		return CFrame.identity
+	end
+	local hold = WeaponCatalog.byId[gun].hold
 	return if hold then offsets[hold][joint] or CFrame.identity else CFrame.identity
 end
 
@@ -114,7 +119,7 @@ end
 local function animate(character: Model, gun: string?)
 	local id = if gun then HOLD_ANIMATIONS[gun] or "" else ""
 	local wanted = if id ~= "" then gun else nil
-	if wanted == holdTrackOf and (holdTrack == nil or holdTrack.IsPlaying) then
+	if wanted == holdTrackOf and holdTrackOwner == character and (holdTrack == nil or holdTrack.IsPlaying) then
 		return
 	end
 	if holdTrack then
@@ -122,6 +127,7 @@ local function animate(character: Model, gun: string?)
 		holdTrack = nil
 	end
 	holdTrackOf = wanted
+	holdTrackOwner = character
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
 	if not wanted or not animator then
@@ -130,6 +136,7 @@ local function animate(character: Model, gun: string?)
 	local animation = Instance.new("Animation")
 	animation.AnimationId = id
 	local track = animator:LoadAnimation(animation)
+	animation:Destroy()
 	track.Priority = Enum.AnimationPriority.Action
 	track.Looped = true
 	track:Play(0.15)

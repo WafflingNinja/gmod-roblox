@@ -47,6 +47,8 @@ local pvpLimiter = RateLimiter.new(Config.PVP_BUCKET_CAPACITY, Config.PVP_REFILL
 
 local lastShot: { [Player]: number } = {}
 local rockets: { Rocket } = {}
+-- Timers from an earlier reload of the same tool; a later reload must not be finished by one.
+local reloadGen: { [Tool]: number } = {}
 
 local function pvp(player: Player): boolean
 	return player:GetAttribute(Config.PVP_ATTRIBUTE) == true
@@ -198,6 +200,9 @@ local function launch(player: Player, def: WeaponCatalog.WeaponDef, origin: Vect
 	})
 end
 
+local rocketParams = RaycastParams.new()
+rocketParams.FilterType = Enum.RaycastFilterType.Exclude
+
 -- One Heartbeat moves every rocket and sweeps a ray along its step.
 local function stepRockets(dt: number)
 	local now = os.clock()
@@ -205,15 +210,13 @@ local function stepRockets(dt: number)
 		local rocket = rockets[i]
 		local from = rocket.part.Position
 		local step = rocket.velocity * dt
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
 		local ignore: { Instance } = { rocket.part }
 		local character = rocket.owner.Character
 		if character then
 			table.insert(ignore, character)
 		end
-		params.FilterDescendantsInstances = ignore
-		local hit = Workspace:Raycast(from, step, params)
+		rocketParams.FilterDescendantsInstances = ignore
+		local hit = Workspace:Raycast(from, step, rocketParams)
 		if hit or now > rocket.expires or not rocket.owner.Parent then
 			table.remove(rockets, i)
 			explode(rocket, if hit then hit.Position else from)
@@ -224,15 +227,25 @@ local function stepRockets(dt: number)
 end
 
 local function reload(player: Player, tool: Tool, def: WeaponCatalog.WeaponDef)
+	-- RELOADING_ATTRIBUTE is the "reload in progress" lock; the Ammo check only rules out a pointless reload.
 	if tool:GetAttribute(Config.RELOADING_ATTRIBUTE) or tool:GetAttribute(Config.AMMO_ATTRIBUTE) == def.magazine then
 		return
 	end
+	local generation = (reloadGen[tool] or 0) + 1
+	reloadGen[tool] = generation
+	tool.Destroying:Once(function()
+		reloadGen[tool] = nil
+	end)
 	tool:SetAttribute(Config.RELOADING_ATTRIBUTE, true)
 	local handle = tool:FindFirstChild("Handle")
 	if handle then
 		Sfx.play("reload", handle)
 	end
 	task.delay(def.reload, function()
+		if reloadGen[tool] ~= generation then
+			return -- a newer reload owns the tool now
+		end
+		reloadGen[tool] = nil
 		-- Unequipping cancels: the tool left the character, the magazine stays as it was.
 		if tool.Parent == player.Character then
 			tool:SetAttribute(Config.AMMO_ATTRIBUTE, def.magazine)

@@ -17,11 +17,14 @@ local BOB_SPEED = 9 -- radians per second at walk speed 16
 local BOB_SIDE = 0.06 -- studs
 local BOB_UP = 0.08
 local BOB_ROLL = math.rad(0.6)
+local BOB_FADE = 10 -- per second, how fast the bob eases in and out
 local SWAY_PER_PIXEL = 0.002 -- radians of lag per pixel of mouse movement
 local SWAY_LIMIT = math.rad(6)
 local SWAY_RETURN = 10 -- how fast the lag settles, per second
 local RIGHT_ARM = { "RightUpperArm", "RightLowerArm", "RightHand" }
 local LEFT_ARM = { "LeftUpperArm", "LeftLowerArm", "LeftHand" }
+local ONE_ARM = { RIGHT_ARM }
+local BOTH_ARMS = { RIGHT_ARM, LEFT_ARM }
 local SHOULDERS = { "RightShoulder", "LeftShoulder" }
 -- Two-handed tools (a LeftGrip on the handle), first person only: both shoulders move in, forward and down
 -- (torso space: +X right, +Y up, -Z forward). The gun sits nearer the middle, still pointing straight, and the
@@ -66,6 +69,7 @@ function FirstPerson.init()
 	local shoulders: { [Motor6D]: CFrame } = {} -- motor -> its original C0
 	local shouldersOf: Model? = nil
 	local bobTime = 0
+	local bobAmount = 0 -- 0..1; fades the bob out instead of snapping when walking stops
 	local sway = Vector2.zero
 
 	-- Shoulders load a moment after the character, so look them up lazily.
@@ -115,7 +119,7 @@ function FirstPerson.init()
 		)
 		-- The camera module hides the whole body in first person every frame; bring the arms back after it.
 		if holding then
-			for _, arm in (if twoHanded then { RIGHT_ARM, LEFT_ARM } else { RIGHT_ARM }) :: { { string } } do
+			for _, arm in (if twoHanded then BOTH_ARMS else ONE_ARM) :: { { string } } do
 				for _, name in arm do
 					local part = character:FindFirstChild(name)
 					if part and part:IsA("BasePart") then
@@ -133,13 +137,17 @@ function FirstPerson.init()
 		end
 
 		local walking = humanoid.MoveDirection.Magnitude > 0.1 and humanoid.FloorMaterial ~= Enum.Material.Air
-		if walking and camera.CameraType == Enum.CameraType.Custom then
-			bobTime += dt * BOB_SPEED * humanoid.WalkSpeed / 16
-			camera.CFrame *= CFrame.new(math.sin(bobTime) * BOB_SIDE, math.abs(math.cos(bobTime)) * BOB_UP, 0) * CFrame.Angles(
-				0,
-				0,
-				math.sin(bobTime) * BOB_ROLL
-			)
+		local bobGoal = if walking and camera.CameraType == Enum.CameraType.Custom then 1 else 0
+		bobAmount += (bobGoal - bobAmount) * math.min(1, dt * BOB_FADE)
+		if bobAmount > 0.01 then
+			if bobGoal > 0 then
+				bobTime += dt * BOB_SPEED * humanoid.WalkSpeed / 16
+			end
+			camera.CFrame *= CFrame.new(
+				math.sin(bobTime) * BOB_SIDE * bobAmount,
+				math.abs(math.cos(bobTime)) * BOB_UP * bobAmount,
+				0
+			) * CFrame.Angles(0, 0, math.sin(bobTime) * BOB_ROLL * bobAmount)
 		end
 	end)
 end

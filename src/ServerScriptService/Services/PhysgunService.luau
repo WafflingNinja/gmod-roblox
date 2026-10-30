@@ -41,15 +41,19 @@ function PhysgunService.init()
 		Sfx.play("physgun_grab", prop)
 	end)
 
-	releaseRemote.OnServerEvent:Connect(function(player: Player)
+	-- An optional prop id: the client's prediction went stale (the prop was removed) and it is just letting go.
+	releaseRemote.OnServerEvent:Connect(function(player: Player, prop: unknown)
 		if grabLimiter:consume(player, 1) then
-			Hold.release(player)
+			Hold.releaseAny(player, if typeof(prop) == "Instance" and prop:IsA("BasePart") then prop else nil)
 		end
 	end)
 
 	freezeRemote.OnServerEvent:Connect(function(player: Player)
+		if not grabLimiter:consume(player, 1) then
+			return
+		end
 		local prop = Hold.get(player)
-		if not prop or not grabLimiter:consume(player, 1) then
+		if not prop then
 			return
 		end
 		if not Validate.equippedTool(player, Config.PHYSGUN) then

@@ -61,7 +61,11 @@ function FeedbackService.init()
 				warn(`Feedback: save failed for {player.UserId}: {err}`)
 			end
 		end
-		notifyRemote:FireClient(player, "Thanks, feedback sent.")
+		-- The SetAsync can yield; the player may be gone by now. FireClient on a
+		-- removed player throws and would abort the handler before it finished.
+		if player.Parent ~= nil then
+			notifyRemote:FireClient(player, "Thanks, feedback sent.")
+		end
 	end)
 end
 

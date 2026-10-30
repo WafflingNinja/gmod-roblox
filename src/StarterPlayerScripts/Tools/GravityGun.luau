@@ -64,9 +64,13 @@ function GravityGun.start(): () -> ()
 				end
 			elseif input.UserInputType == Enum.UserInputType.MouseButton1 and camera then
 				if holding then
-					punt:FireServer(holding, camera.CFrame.LookVector)
-					holding = nil
-					return
+					if not holding.Parent then
+						holding = nil -- the prop went away; fall through to a normal punt
+					else
+						punt:FireServer(holding, camera.CFrame.LookVector)
+						holding = nil
+						return
+					end
 				end
 				local hit = Aim.cast(Config.GRAVGUN_PUNT_RANGE)
 				local result = hit and hit.result
@@ -83,7 +87,10 @@ function GravityGun.start(): () -> ()
 		RunService.RenderStepped:Connect(function(dt)
 			local camera = Workspace.CurrentCamera
 			local root = rootPart()
-			if not holding or not holding.Parent or not camera or not root then
+			if holding and not holding.Parent then
+				holding = nil -- the prop was removed; the next RMB pulls again instead of "dropping"
+			end
+			if not holding or not camera or not root then
 				return
 			end
 			local point = root.Position + EYE_OFFSET + camera.CFrame.LookVector * Config.GRAVGUN_HOLD_DISTANCE
@@ -99,7 +106,10 @@ function GravityGun.start(): () -> ()
 	)
 
 	return function()
-		holding = nil -- the server releases on unequip
+		if holding then
+			-- The server releases on unequip; clear the local prediction too so re-equip starts clean.
+			holding = nil
+		end
 		ToolHud.setCrosshair(false)
 		for _, connection in connections do
 			connection:Disconnect()

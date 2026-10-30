@@ -41,6 +41,16 @@ local IDS = {
 	"203785492", -- audio used as an image
 }
 
+local ID_SET: { [string]: boolean } = {}
+for _, id in IDS do
+	ID_SET[id] = true
+end
+
+-- The numeric id in the asset URLs Roblox writes: "rbxassetid://123" and the legacy "asset/?id=123".
+local function assetId(value: string): string?
+	return string.match(value, "rbxassetid://(%d+)") or string.match(value, "[?&]id=(%d+)")
+end
+
 local BadAssets = {
 	textureProp = TEXTURE_PROP,
 	effectClass = EFFECT_CLASS,
@@ -50,8 +60,14 @@ function BadAssets.isBad(value: unknown): boolean
 	if typeof(value) ~= "string" or value == "" then
 		return false
 	end
-	for _, id in IDS do
-		if string.find(value, id, 1, true) then
+	local id = assetId(value)
+	if id then
+		-- Exact id only: a bad id that is a prefix of another number is a different asset.
+		return ID_SET[id] == true
+	end
+	-- Unrecognised format: fall back to a substring match rather than letting an odd URL slip through.
+	for _, bad in IDS do
+		if string.find(value, bad, 1, true) then
 			return true
 		end
 	end

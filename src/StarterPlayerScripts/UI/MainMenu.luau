@@ -95,10 +95,22 @@ local WEB = {
 	radius = UDim.new(0, 5),
 }
 
+-- One live tween per instance: a new tween on the same instance cancels the old one, so rapid toggles
+-- (curtain, dialog pop) never leave two tweens fighting over one property.
+local liveTweens: { [Instance]: Tween } = {}
+
 local function tween(instance: Instance, seconds: number, goal: { [string]: any }, style: Enum.EasingStyle?)
-	TweenService
-		:Create(instance, TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal)
-		:Play()
+	local previous = liveTweens[instance]
+	if previous then
+		previous:Cancel()
+	end
+	local running = TweenService:Create(
+		instance,
+		TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		goal
+	)
+	liveTweens[instance] = running
+	running:Play()
 end
 
 local function merge(base: { [string]: any }, extra: { [string]: any }?): { [string]: any }
@@ -239,6 +251,8 @@ local function infoPage(name: string, parent: Instance): Frame
 		PaddingLeft = UDim.new(0, 16),
 		PaddingRight = UDim.new(0, 16),
 	}, frame)
+	-- showDialog pops this open (Scale 0.9 -> 1); without it the page would just blink on.
+	make("UIScale", { Scale = 1 }, frame)
 	return frame
 end
 
@@ -467,6 +481,7 @@ function MainMenu.init()
 	local allLinks: { TextButton } = {}
 	local openDialog: string? = nil
 	local function showDialog(name: string?)
+		local previous = openDialog
 		openDialog = name
 		for dialogName, frame in dialogs do
 			local opening = dialogName == name and not frame.Visible
@@ -483,6 +498,15 @@ function MainMenu.init()
 		-- Gmod's New Game page replaces the menu links; the other pages sit beside them.
 		left.Visible = name ~= "Start Game"
 		backButton.Visible = name ~= nil
+		-- A gamepad needs a focused control: the first button on the page, or the link that opened it back.
+		if UserInputService.GamepadEnabled and root.Visible then
+			local frame = if name then dialogs[name] else nil
+			if frame then
+				GuiService.SelectedObject = frame:FindFirstWhichIsA("GuiButton", true)
+			elseif previous then
+				GuiService.SelectedObject = linkButtons[previous] or allLinks[1]
+			end
+		end
 	end
 	-- Gmod main menu: plain white text, no boxes, a soft shadow so it reads over any map. Each link gets a
 	-- small flat icon so the column reads at a glance.
@@ -512,7 +536,7 @@ function MainMenu.init()
 			end
 		end)
 		b.MouseLeave:Connect(function()
-			b.TextColor3 = if linkButtons[label] and openDialog == label then LINK_ACTIVE else LINK_COLOR
+			b.TextColor3 = if openDialog == label then LINK_ACTIVE else LINK_COLOR
 			for _, shape in tint do
 				shape.BackgroundColor3 = LINK_COLOR
 			end
@@ -526,6 +550,7 @@ function MainMenu.init()
 	-- Camera circles the selected map while the menu is open.
 	local orbitAngle = 0
 	local orbitDef = MapCatalog.byId[MapCatalog.DEFAULT]
+	local orbitCenter = Vector3.zero -- set from orbitDef in selectMap, so the render step allocates nothing
 	local introStart: number? = nil
 	local function startOrbit()
 		RunService:BindToRenderStep("MenuOrbit", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
@@ -538,7 +563,7 @@ function MainMenu.init()
 				orbitAngle += dt * 2 * math.pi / ORBIT_SECONDS
 			end
 			local orbit = orbitDef.orbit
-			local center = Vector3.new(orbit.center[1], orbit.center[2], orbit.center[3])
+			local center = orbitCenter
 			local zoom = 1
 			if introStart and not GuiService.ReducedMotionEnabled then
 				local t = math.min((os.clock() - introStart) / INTRO_ZOOM_SECONDS, 1)
@@ -569,7 +594,9 @@ function MainMenu.init()
 	local function hideOtherGuis(hide: boolean)
 		if not hide then
 			for _, other in hidden do
-				other.Enabled = true
+				if other.Parent then
+					other.Enabled = true
+				end
 			end
 			table.clear(hidden)
 			return
@@ -590,6 +617,7 @@ function MainMenu.init()
 		pageArea
 	)
 	dialogs["Start Game"] = playFrame
+	make("UIScale", { Scale = 1 }, playFrame)
 	local mapPanel = make("Frame", {
 		Position = UDim2.fromOffset(16, 16),
 		Size = UDim2.new(1, -272, 1, -32),
@@ -728,14 +756,18 @@ function MainMenu.init()
 		categoryCount.Text = tostring(shown)
 	end
 	local function selectMap(id: string)
-		selected = id
 		local def = MapCatalog.byId[id]
+		if not def then
+			return
+		end
+		selected = id
 		local current = player:GetAttribute(Config.MAP_ATTRIBUTE)
 		detailName.Text = def.name
 		detailHere.Text = if current == id then "You are here" else ""
 		detailBlurb.Text = def.blurb
 		start.Text = if current == id then "Respawn here" else "Start"
 		orbitDef = def
+		orbitCenter = Vector3.new(def.orbit.center[1], def.orbit.center[2], def.orbit.center[3])
 		MapLighting.preview(id)
 		refreshTiles()
 	end
@@ -843,14 +875,21 @@ function MainMenu.init()
 		UserInputService.MouseDeltaSensitivity = v
 	end, 0.1, 0.1, 3)
 	stepper(optionsBody, 2, "Field of view", FirstPerson.fieldOfView, FirstPerson.setFieldOfView, 5, 60, 110)
-	local lookRow =
-		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 3 }, optionsBody)
-	ink("Arrow keys look around", lookRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local lookToggle = plainButton("", lookRow, {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.fromScale(1, 0.5),
-		Size = UDim2.fromOffset(140, 26),
-	})
+	-- "name   [state]" row; returns the button so the caller sets its text.
+	local function toggleRow(order: number, name: string): TextButton
+		local row = make("Frame", {
+			Size = UDim2.new(1, 0, 0, 34),
+			BackgroundTransparency = 1,
+			LayoutOrder = order,
+		}, optionsBody)
+		ink(name, row, { Size = UDim2.new(1, -150, 1, 0) })
+		return plainButton("", row, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromOffset(140, 26),
+		})
+	end
+	local lookToggle = toggleRow(3, "Arrow keys look around")
 	local function refreshLook()
 		lookToggle.Text = if KeyboardLook.isEnabled() then "On" else "Off (arrows walk)"
 	end
@@ -861,14 +900,7 @@ function MainMenu.init()
 	refreshLook()
 	stepper(optionsBody, 4, "Arrow-key look speed", KeyboardLook.speed, KeyboardLook.setSpeed, 0.5, 0.5, 6)
 	local pvpRemote = Net.event("SetPvp")
-	local pvpRow =
-		make("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 5 }, optionsBody)
-	ink("PvP (guns hurt players who also have it on)", pvpRow, { Size = UDim2.new(1, -150, 1, 0) })
-	local pvpToggle = plainButton("", pvpRow, {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.fromScale(1, 0.5),
-		Size = UDim2.fromOffset(140, 26),
-	})
+	local pvpToggle = toggleRow(5, "PvP (guns hurt players who also have it on)")
 	local function refreshPvp()
 		pvpToggle.Text = if player:GetAttribute(Config.PVP_ATTRIBUTE) == true then "On" else "Off"
 	end
@@ -987,7 +1019,8 @@ function MainMenu.init()
 	end
 
 	local function refreshCurrent()
-		local def = MapCatalog.byId[player:GetAttribute(Config.MAP_ATTRIBUTE) :: string]
+		local id = player:GetAttribute(Config.MAP_ATTRIBUTE)
+		local def = if typeof(id) == "string" then MapCatalog.byId[id] else nil
 		currentLine.Text = if def then `Current map: {def.name}` else ""
 	end
 	player:GetAttributeChangedSignal(Config.MAP_ATTRIBUTE):Connect(refreshCurrent)
@@ -1052,6 +1085,15 @@ function MainMenu.init()
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if not processed and input.KeyCode == Enum.KeyCode.M then
 			setOpen(not root.Visible)
+		end
+		-- Gamepad B: close the open page first, then the menu itself.
+		if not processed and root.Visible and input.KeyCode == Enum.KeyCode.ButtonB then
+			if openDialog then
+				showDialog(nil)
+			else
+				setOpen(false)
+			end
+			return
 		end
 		if not root.Visible or input.UserInputType ~= Enum.UserInputType.Keyboard then
 			return

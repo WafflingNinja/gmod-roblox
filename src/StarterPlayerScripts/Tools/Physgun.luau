@@ -39,18 +39,31 @@ function Physgun.start(): () -> ()
 	end
 
 	-- First person turns the view with the mouse; freeze the camera while the mouse rotates the prop.
+	-- The camera type and mouse behaviour are saved and restored, so releasing R in third person (or under a
+	-- menu's own camera) does not force the default camera back on.
+	local savedCameraType: Enum.CameraType? = nil
+	local savedMouse: Enum.MouseBehavior? = nil
 	local function setRotating(on: boolean)
 		if rotating == on then
 			return
 		end
 		rotating = on
 		local camera = Workspace.CurrentCamera
-		if camera then
-			camera.CameraType = if on then Enum.CameraType.Scriptable else Enum.CameraType.Custom
+		if on then
+			savedCameraType = if camera then camera.CameraType else nil
+			savedMouse = UserInputService.MouseBehavior
+			if camera then
+				camera.CameraType = Enum.CameraType.Scriptable
+			end
+			UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+		else
+			if camera and savedCameraType then
+				camera.CameraType = savedCameraType
+			end
+			UserInputService.MouseBehavior = savedMouse or Enum.MouseBehavior.Default
+			savedCameraType = nil
+			savedMouse = nil
 		end
-		UserInputService.MouseBehavior = if on
-			then Enum.MouseBehavior.LockCurrentPosition
-			else Enum.MouseBehavior.Default
 	end
 
 	ToolHud.setCrosshair(true)
@@ -118,7 +131,17 @@ function Physgun.start(): () -> ()
 		connections,
 		RunService.RenderStepped:Connect(function(dt)
 			local camera = Workspace.CurrentCamera
-			if not holding or not holding.Parent or not camera then
+			if not camera then
+				return
+			end
+			if not holding then
+				return
+			end
+			if not holding.Parent then
+				-- The prop was removed under us (X tool, undo, Clear): let go so the next LMB grabs again
+				-- instead of aiming a dead hold at a hole. drop() sends the release before clearing.
+				drop()
+				setRotating(false)
 				return
 			end
 			local point = camera.CFrame.Position + camera.CFrame.LookVector * holdDistance

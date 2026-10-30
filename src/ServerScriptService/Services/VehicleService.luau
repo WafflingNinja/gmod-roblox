@@ -60,7 +60,9 @@ end
 
 local function driveWheel(
 	entry: Wheel,
-	seat: VehicleSeat,
+	seatPos: Vector3,
+	right: Vector3,
+	forwardSpin: Vector3,
 	throttle: number,
 	steer: number,
 	tank: boolean,
@@ -74,7 +76,7 @@ local function driveWheel(
 	end
 	local radius = entry.wheel.Size.Y / 2
 	local power = throttle
-	local side = if (entry.wheel.Position - seat.Position):Dot(seat.CFrame.RightVector) >= 0 then 1 else -1
+	local side = if (entry.wheel.Position - seatPos):Dot(right) >= 0 then 1 else -1
 	if tank then
 		power = math.clamp(throttle - steer * side, -1, 1)
 	else
@@ -83,7 +85,6 @@ local function driveWheel(
 		power = throttle * (1 - steer * side * Config.CAR_DIFFERENTIAL)
 	end
 	-- Rolling forward spins about up x forward; flip for wheels whose hinge axis points the other way.
-	local forwardSpin = seat.CFrame.UpVector:Cross(seat.CFrame.LookVector)
 	local sign = if base.WorldAxis:Dot(forwardSpin) >= 0 then 1 else -1
 	hinge.AngularVelocity = sign * power * maxSpeed / radius
 	hinge.MotorMaxTorque = torque * radius * (if power == 0 then BRAKE else 1)
@@ -123,11 +124,15 @@ local function steerAssist(seat: VehicleSeat, steer: number, occupied: boolean, 
 end
 
 -- ponytail: scans every chassis per occupied seat each frame; index chassis by assembly if this shows in profiles.
+-- scratchLists is reused across frames so the hot path does not allocate a fresh array per call.
+local scratchLists: { { Wheel } } = {}
+
 local function drive(seat: VehicleSeat, occupied: boolean)
 	local throttle = if occupied then seat.ThrottleFloat else 0
 	local steer = if occupied then seat.SteerFloat else 0
 	local root = seat.AssemblyRootPart
-	local lists: { { Wheel } } = {}
+	table.clear(scratchLists)
+	local lists = scratchLists
 	-- Wheels are their own assemblies (hinged), so count them: a light chassis on heavy wheels (the buggy) got
 	-- almost no torque from the chassis mass alone and would not move.
 	local mass = seat.AssemblyMass
@@ -143,13 +148,17 @@ local function drive(seat: VehicleSeat, occupied: boolean)
 	local torque = mass * Config.CAR_TORQUE_PER_MASS
 	local chassisDef = root and PropCatalog.byId[root.Name]
 	local maxSpeed = if chassisDef and chassisDef.topSpeed then chassisDef.topSpeed else Config.CAR_MAX_SPEED
+	local seatPos = seat.Position
+	local seatCFrame = seat.CFrame
+	local right = seatCFrame.RightVector
+	local forwardSpin = seatCFrame.UpVector:Cross(seatCFrame.LookVector)
 	for _, list in lists do
 		local tank = true
 		for _, entry in list do
 			tank = tank and entry.steer == nil
 		end
 		for _, entry in list do
-			driveWheel(entry, seat, throttle, steer, tank, torque, maxSpeed)
+			driveWheel(entry, seatPos, right, forwardSpin, throttle, steer, tank, torque, maxSpeed)
 		end
 	end
 end

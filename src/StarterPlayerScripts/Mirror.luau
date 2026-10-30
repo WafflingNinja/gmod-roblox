@@ -80,7 +80,6 @@ local function buildRoom(face: Face, origin: Vector3, normal: Vector3)
 				+ math.abs(cf.UpVector:Dot(normal)) * half.Y
 				+ math.abs(cf.LookVector:Dot(normal)) * half.Z
 			local depth = (descendant.Position - origin):Dot(normal) - reach
-			local distance = boxDistance(descendant, origin)
 			if
 				descendant.Transparency < 0.98
 				and descendant.Size.Magnitude > 0.5
@@ -88,9 +87,11 @@ local function buildRoom(face: Face, origin: Vector3, normal: Vector3)
 				and descendant.Name ~= "Mirror"
 				and descendant.Name ~= "MirrorFrame"
 				and not CollectionService:HasTag(descendant, Config.MIRROR_TAG)
-				and distance <= Config.MIRROR_ROOM_RANGE
 			then
-				table.insert(candidates, { part = descendant, distance = distance })
+				local distance = boxDistance(descendant, origin)
+				if distance <= Config.MIRROR_ROOM_RANGE then
+					table.insert(candidates, { part = descendant, distance = distance })
+				end
 			end
 		end
 	end
@@ -294,7 +295,8 @@ local function attach(part: BasePart)
 	gui.Adornee = part
 	gui.ResetOnSpawn = false
 	gui.Parent = player:WaitForChild("PlayerGui")
-	entries[part] = { part = part, faces = { face } }
+	local entry: Entry = { part = part, faces = { face } }
+	entries[part] = entry
 
 	local origin = part.Position
 	local normal = faceNormal(part, faceId)
@@ -306,12 +308,11 @@ local function attach(part: BasePart)
 		if not ok then
 			warn(`Mirror: room copy failed for {part:GetFullName()}: {err}`)
 		end
-		print(`Mirror: {part:GetFullName()} reflects {#room:GetChildren()} room parts`)
 	end
 	rebuild()
 	-- The map may still be replicating when the tagged panel arrives; copy the room again once it has.
 	task.delay(ROOM_REBUILD_DELAY, function()
-		if entries[part] then
+		if entries[part] == entry then
 			rebuild()
 		end
 	end)

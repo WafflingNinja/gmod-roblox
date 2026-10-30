@@ -117,6 +117,7 @@ local list: { WeaponDef } = {
 
 local byId: { [string]: WeaponDef } = {}
 for _, def in list do
+	assert(byId[def.id] == nil, `WeaponCatalog: duplicate id {def.id}`)
 	byId[def.id] = def
 end
 

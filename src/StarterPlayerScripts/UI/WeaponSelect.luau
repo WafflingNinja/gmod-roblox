@@ -93,7 +93,11 @@ function WeaponSelect.isOpen(): boolean
 end
 
 function WeaponSelect.init()
-	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+	-- Pure touch has no number keys or wheel, so keep Roblox's hotbar there; the selector replaces it
+	-- everywhere a keyboard exists.
+	if not (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+	end
 
 	local gui = make(
 		"ScreenGui",
@@ -120,6 +124,11 @@ function WeaponSelect.init()
 		selected = nil
 		gui.Enabled = false
 	end
+
+	-- A respawn drops every Tool; never keep the selector open over stale entries.
+	player.CharacterAdded:Connect(function()
+		close()
+	end)
 
 	local function render(tools: { Tool })
 		for _, child in row:GetChildren() do
@@ -261,10 +270,43 @@ function WeaponSelect.init()
 		end
 	end
 
+	-- Keyboard slots plus a gamepad mapping: the d-pad does the wheel's job, A confirms, B cancels.
 	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then
+			return
+		end
 		local slot = SLOT_KEYS[input.KeyCode]
-		if slot and not processed then
+		if slot then
 			pressSlot(slot)
+			return
+		end
+		local code = input.KeyCode
+		if code == Enum.KeyCode.DPadLeft or code == Enum.KeyCode.DPadRight then
+			local direction = if code == Enum.KeyCode.DPadRight then 1 else -1
+			if open then
+				step(direction)
+			else
+				quickSwitch(direction)
+			end
+		elseif code == Enum.KeyCode.DPadUp then
+			local tools = owned()
+			if #tools > 0 then
+				local character = player.Character
+				local held = character and character:FindFirstChildOfClass("Tool")
+				local index = 1
+				if held then
+					index = table.find(tools, held) or index
+				elseif selected then
+					index = table.find(tools, selected) or index
+				end
+				show(tools[index], tools, true)
+			end
+		elseif open and gui.Enabled then
+			if code == Enum.KeyCode.ButtonA then
+				confirm()
+			elseif code == Enum.KeyCode.ButtonB then
+				close()
+			end
 		end
 	end)
 

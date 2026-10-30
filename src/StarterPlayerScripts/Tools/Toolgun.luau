@@ -21,6 +21,7 @@ local function selectMode(id: string)
 	for index, mode in ToolModes.list do
 		if mode.id == id then
 			modeIndex = index
+			break
 		end
 	end
 	if panel then
@@ -49,6 +50,11 @@ local function dupeAction(action: ToolHud.DupeAction, slot: number)
 end
 
 local Toolgun = {}
+
+-- First clicks of a two-click mode are stored server-side. If the tool is put away between the two clicks the
+-- server forgets the first one while this panel stays up: the next click would silently restart the pair.
+-- After one re-sent click the server either picked the pair up again or started fresh, and this turns off.
+local resent = false
 
 function Toolgun.start(): () -> ()
 	local use = Net.event("ToolgunUse")
@@ -79,7 +85,18 @@ function Toolgun.start(): () -> ()
 		if not result or not prop then
 			return
 		end
-		use:FireServer(ToolModes.list[modeIndex].id, prop, result.Position, result.Normal, extra)
+		local mode = ToolModes.list[modeIndex].id
+		use:FireServer(mode, prop, result.Position, result.Normal, extra)
+		if mode == "Weld" or mode == "Rope" then
+			if resent then
+				resent = false
+			else
+				resent = true
+				task.delay(0.15, function()
+					resent = false
+				end)
+			end
+		end
 	end
 
 	local connections: { RBXScriptConnection } = {}
@@ -101,6 +118,7 @@ function Toolgun.start(): () -> ()
 				else
 					fire(nil)
 				end
+				resent = false -- only the first click of a pair is ever re-sent
 			elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
 				if mode == "Scale" then
 					fire(-1)
